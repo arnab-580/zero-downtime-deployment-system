@@ -75,9 +75,9 @@ jobs:
             echo "==> Smoke testing inactive deployment before switching traffic..."
             kubectl -n deployment-engine port-forward deployment/$TARGET 18082:80 > /tmp/preview.log 2>&1 &
             PF=$!
-            trap 'kill $PF 2>/dev/null || true' EXIT
             sleep 5
             curl --fail --retry 10 --retry-delay 2 http://127.0.0.1:18082/health
+            kill $PF 2>/dev/null || true
 
             echo "==> Promoting traffic to new version ($TARGET)..."
             bash ./scripts/promote.sh "$TARGET"
