@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
 COLOR="${1:?usage: promote.sh <blue|green>}"
+
+# 1. Patch the Kubernetes active service selector
 kubectl -n deployment-engine patch service active --type merge -p "{\"spec\":{\"selector\":{\"app\":\"deployment-engine\",\"color\":\"$COLOR\"}}}"
-if systemctl is-enabled --quiet deployment-active 2>/dev/null; then
-  sudo systemctl restart deployment-active
-fi
-echo "active traffic is now $COLOR"
+
+# 2. Refresh the active service port forward on port 8080
+pkill -9 -f "port-forward.*8080" 2>/dev/null || true
+sleep 1
+( nohup kubectl -n deployment-engine port-forward --address 0.0.0.0 svc/active 8080:80 </dev/null >/tmp/active-forward.log 2>&1 & )
+
+echo "Active traffic is now routed 100% to $COLOR"

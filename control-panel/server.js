@@ -1,12 +1,5 @@
 const http = require('node:http');
-const { execFile, exec } = require('node:child_process');
-
-function kubectl(args, callback) {
-  execFile('kubectl', ['-n', 'deployment-engine', ...args], (error, stdout, stderr) => {
-    if (error) return callback(error, stderr || error.message);
-    callback(null, stdout.trim());
-  });
-}
+const { execFile } = require('node:child_process');
 
 const page = `<!doctype html>
 <html lang="en">
@@ -89,7 +82,7 @@ const page = `<!doctype html>
     }
 
     async function switchColor(color) {
-      log('Switching live traffic to 100% ' + color.toUpperCase() + '...');
+      log('Triggering script to route traffic to 100% ' + color.toUpperCase() + '...');
       const res = await fetch('/switch/' + color, { method: 'POST' });
       const text = await res.text();
       log(text);
@@ -109,32 +102,28 @@ http.createServer((req, res) => {
   }
 
   if (req.url === '/status') {
-    return kubectl(['get', 'service', 'active', '-o', 'jsonpath={.spec.selector.color}'], (e, color) => {
+    return execFile('kubectl', ['-n', 'deployment-engine', 'get', 'service', 'active', '-o', 'jsonpath={.spec.selector.color}'], (e, stdout) => {
       res.writeHead(200);
-      res.end(color || 'unknown');
+      res.end(stdout ? stdout.trim() : 'unknown');
     });
   }
 
   const switchMatch = req.url.match(/^\/switch\/(blue|green)$/);
   if (req.method === 'POST' && switchMatch) {
     const color = switchMatch[1];
-    const patch = `{"spec":{"selector":{"app":"deployment-engine","color":"${color}"}}}`;
     
-    // 1. Patch service selector
-    // 2. Kill and restart port-forward on port 8080 so port 8080 immediately points to the newly active deployment!
-    const cmd = `kubectl -n deployment-engine patch service active --type=merge -p '${patch}' && pkill -9 -f "port-forward.*8080" 2>/dev/null || true && ( nohup kubectl -n deployment-engine port-forward --address 0.0.0.0 svc/active 8080:80 </dev/null >/tmp/active-forward.log 2>&1 & )`;
-
-    exec(cmd, (err) => {
+    // Trigger dedicated promote.sh script
+    execFile('bash', ['./scripts/promote.sh', color], (err, stdout, stderr) => {
       if (err) {
         res.writeHead(500);
-        return res.end('Switch failed: ' + err.message);
+        return res.end('Switch failed: ' + (stderr || err.message));
       }
       res.writeHead(200);
-      res.end(`Live traffic routed 100% to ${color.toUpperCase()} and port 8080 refreshed.`);
+      res.end(stdout ? stdout.trim() : `Traffic routed to ${color.toUpperCase()}`);
     });
     return;
   }
 
   res.writeHead(404);
   res.end('not found');
-}).listen(8081, '0.0.0.0', () => console.log('Control panel on port 8081'));
+}).listen(8081, '0.0.0.0', () => console.log('Control panel listening on port 8081'));
