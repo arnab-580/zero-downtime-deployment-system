@@ -32,23 +32,27 @@
         <div class="badge-active">ACTIVE LIVE WORKLOAD (v0.4)</div>
         <h1>Production Workload v0.4</h1>
         <p>
-          Serving enterprise production release v0.4 with enhanced performance, real-time traffic telemetry, and zero-downtime cutover across Kubernetes pods.
+          Serving enterprise production release v0.4 with real-time Kubernetes telemetry, micro-container efficiency, and zero-downtime blue-green traffic cutover.
         </p>
       </div>
 
-      <!-- Real-Time Metrics Row -->
+      <!-- Real-Time Metrics Row (Populated from Live Server Telemetry) -->
       <div class="stats-row">
         <div class="stat-box">
-          <div class="stat-num" id="totalRequestsCount">0</div>
-          <div class="stat-lbl">Requests Streamed</div>
+          <div class="stat-num" id="liveRps">0</div>
+          <div class="stat-lbl">Live Req / Sec (RPS)</div>
         </div>
         <div class="stat-box">
-          <div class="stat-num" id="avgLatency">0ms</div>
-          <div class="stat-lbl">Avg Response Time</div>
+          <div class="stat-num" id="totalHandled">0</div>
+          <div class="stat-lbl">Total Handled Requests</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="activeConns">0</div>
+          <div class="stat-lbl">Active TCP Connections</div>
         </div>
         <div class="stat-box">
           <div class="stat-num" style="color: var(--primary-color);">100.0%</div>
-          <div class="stat-lbl">Target SLA</div>
+          <div class="stat-lbl">Success Rate SLA</div>
         </div>
       </div>
     </section>
@@ -57,13 +61,13 @@
     <section class="features-grid">
       <div class="feature-card">
         <div class="feature-icon">💎</div>
-        <div class="feature-title">Enterprise v0.4 Release</div>
-        <div class="feature-desc">Micro-container footprint with optimized static assets and line-rate Kubernetes routing.</div>
+        <div class="feature-title">High-Throughput v0.4</div>
+        <div class="feature-desc">Micro-container footprint with line-rate Kubernetes packet forwarding.</div>
       </div>
       <div class="feature-card">
         <div class="feature-icon">🔄</div>
         <div class="feature-title">Atomic Blue-Green Switching</div>
-        <div class="feature-desc">Zero connection drops during workload cutovers via instant Kubernetes service selector routing.</div>
+        <div class="feature-desc">Zero connection drops during live workload cutovers via instant Kubernetes service routing.</div>
       </div>
       <div class="feature-card">
         <div class="feature-icon">🛡️</div>
@@ -72,22 +76,23 @@
       </div>
     </section>
 
-    <!-- Live Traffic Stream (Visual Zero-Downtime Monitor) -->
+    <!-- Real-Time Server Telemetry Terminal (Driven by Real External Load) -->
     <section class="stream-box">
       <div class="stream-top">
         <div class="stream-title">
-          <span>⚡ Live Traffic Stream (Zero-Downtime Monitor)</span>
+          <span>⚡ Live Server Telemetry (Real-Time Throughput Monitor)</span>
         </div>
         <div class="stream-controls">
-          <button id="streamToggle" class="primary" onclick="toggleStream()">⏸ Pause Stream</button>
-          <button onclick="pingOnce()">⚡ Send 1 Request</button>
+          <span style="font-size:0.8rem; color:var(--text-muted); padding:0.4rem 0.8rem; background:#1e293b; border-radius:6px;">
+            📡 Polling /stub_status (Passive Observer)
+          </span>
         </div>
       </div>
       <div class="terminal" id="terminal">
         <div class="log-entry">
           <span class="log-time">[System]</span>
           <span class="badge-200">READY</span>
-          <span>Traffic stream initialized. Continuously pinging /health endpoint to verify 0 dropped packets.</span>
+          <span>Telemetry observer online. Send external traffic or launch load test to watch live RPS and cutover.</span>
         </div>
       </div>
     </section>
@@ -105,62 +110,66 @@
   </div>
 
   <script>
-    let isRunning = true;
-    let timer = null;
-    let totalReqs = 0;
-    let latencies = [];
+    let prevRequests = null;
+    let prevTime = null;
 
-    function addLog(status, latency) {
-      totalReqs++;
-      document.getElementById('totalRequestsCount').textContent = totalReqs.toLocaleString();
-      
-      latencies.push(latency);
-      if (latencies.length > 20) latencies.shift();
-      const avg = Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length);
-      document.getElementById('avgLatency').textContent = avg + 'ms';
+    async function pollTelemetry() {
+      try {
+        const res = await fetch('/stub_status');
+        if (!res.ok) return;
+        const text = await res.text();
+        
+        // Parse NGINX stub_status
+        // Format:
+        // Active connections: 2 
+        // server accepts handled requests
+        //  10 10 2500 
+        // Reading: 0 Writing: 1 Waiting: 1 
+        const activeMatch = text.match(/Active connections:\s+(\d+)/);
+        const reqMatch = text.match(/\s+\d+\s+\d+\s+(\d+)/);
 
+        const activeConns = activeMatch ? parseInt(activeMatch[1], 10) : 0;
+        const totalReqs = reqMatch ? parseInt(reqMatch[1], 10) : 0;
+
+        document.getElementById('activeConns').textContent = activeConns.toLocaleString();
+        document.getElementById('totalHandled').textContent = totalReqs.toLocaleString();
+
+        const now = performance.now();
+        if (prevRequests !== null && prevTime !== null) {
+          const deltaReqs = totalReqs - prevRequests;
+          const deltaSecs = (now - prevTime) / 1000;
+          const rps = deltaSecs > 0 ? Math.max(0, Math.round(deltaReqs / deltaSecs)) : 0;
+          document.getElementById('liveRps').textContent = rps.toLocaleString();
+
+          if (deltaReqs > 0) {
+            addTelemetryLog(rps, activeConns, totalReqs);
+          }
+        }
+
+        prevRequests = totalReqs;
+        prevTime = now;
+      } catch (e) {
+        console.error("Telemetry fetch error:", e);
+      }
+    }
+
+    function addTelemetryLog(rps, conns, total) {
       const term = document.getElementById('terminal');
       const time = new Date().toLocaleTimeString();
       const line = document.createElement('div');
       line.className = 'log-entry';
       line.innerHTML = `
         <span class="log-time">${time}</span>
-        <span class="badge-200">${status}</span>
-        <span>v0.4 responded in <strong>${latency}ms</strong> — 0 connection loss verified</span>
+        <span class="badge-200">${rps > 500 ? '⚡ HIGH LOAD' : '200 OK'}</span>
+        <span>Throughput: <strong>${rps.toLocaleString()} req/s</strong> | Active TCP: <strong>${conns}</strong> | Total Processed: <strong>${total.toLocaleString()}</strong></span>
       `;
       term.insertBefore(line, term.firstChild);
-      while (term.children.length > 40) term.removeChild(term.lastChild);
+      while (term.children.length > 30) term.removeChild(term.lastChild);
     }
 
-    async function ping() {
-      const start = performance.now();
-      try {
-        const res = await fetch('/health');
-        const latency = Math.round(performance.now() - start);
-        if (res.ok) addLog('200 OK', latency);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    function toggleStream() {
-      const btn = document.getElementById('streamToggle');
-      if (isRunning) {
-        clearInterval(timer);
-        isRunning = false;
-        btn.textContent = '▶ Resume Stream';
-        btn.classList.remove('primary');
-      } else {
-        isRunning = true;
-        btn.textContent = '⏸ Pause Stream';
-        btn.classList.add('primary');
-        start();
-      }
-    }
-
-    function pingOnce() { ping(); }
-    function start() { clearInterval(timer); timer = setInterval(ping, 1000); }
-    start();
+    // Passively poll every 1 second without generating load
+    setInterval(pollTelemetry, 1000);
+    pollTelemetry();
   </script>
 </body>
 </html>
