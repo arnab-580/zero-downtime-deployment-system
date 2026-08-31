@@ -2,9 +2,9 @@
   --bg-color: #0b0f19;
   --card-bg: #131b2e;
   --card-border: #1e293b;
-  --primary-color: #f43f5e; /* Rose Coral for v0.4 */
-  --primary-glow: rgba(244, 63, 94, 0.35);
-  --primary-badge-bg: rgba(244, 63, 94, 0.15);
+  --primary-color: #f97316; /* Sunset Orange for v0.5 */
+  --primary-glow: rgba(249, 115, 22, 0.35);
+  --primary-badge-bg: rgba(249, 115, 22, 0.15);
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
 }
@@ -247,38 +247,6 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.stream-controls {
-  display: flex;
-  gap: 0.5rem;
-}
-
-button {
-  background: #1e293b;
-  color: #f8fafc;
-  border: 1px solid #334155;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-button:hover {
-  background: #334155;
-}
-
-button.primary {
-  background: var(--primary-color);
-  color: #090d16;
-  border-color: var(--primary-color);
-}
-
-button.primary:hover {
-  opacity: 0.9;
-  box-shadow: 0 0 10px var(--primary-glow);
 }
 
 .terminal {

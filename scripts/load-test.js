@@ -2,19 +2,19 @@
 const http = require('node:http');
 
 const TARGET_URL = process.argv[2] || 'http://127.0.0.1:8080/health';
-const TARGET_RPS = parseInt(process.env.RPS || '1000', 10);
-const DURATION_SECS = parseInt(process.env.DURATION || '60', 10);
+const TARGET_RPS = parseInt(process.env.RPS || '10000', 10);
+const DURATION_SECS = parseInt(process.env.DURATION || '30', 10);
 
 console.log(`\n======================================================`);
-console.log(`⚡ HIGH-THROUGHPUT LOAD GENERATOR (1,000 Req / Sec)`);
+console.log(`💥 ENTERPRISE LOAD GENERATOR (${TARGET_RPS.toLocaleString()} Req / Sec)`);
 console.log(`🎯 Target Endpoint: ${TARGET_URL}`);
-console.log(`🚀 Rate: ~${TARGET_RPS} requests/sec | Duration: ${DURATION_SECS}s`);
+console.log(`🚀 Target Rate: ~${TARGET_RPS.toLocaleString()} requests/sec | Duration: ${DURATION_SECS}s`);
 console.log(`======================================================\n`);
 
 const agent = new http.Agent({
   keepAlive: true,
-  maxSockets: 100,
-  maxFreeSockets: 100,
+  maxSockets: 500,
+  maxFreeSockets: 500,
   timeout: 5000,
 });
 
@@ -44,7 +44,7 @@ function sendRequest() {
   totalSent++;
   
   const req = http.request(options, (res) => {
-    res.resume(); // discard body
+    res.resume();
     if (res.statusCode >= 200 && res.statusCode < 400) {
       totalOk++;
       secondOk++;
@@ -62,9 +62,9 @@ function sendRequest() {
   req.end();
 }
 
-// Tick 1000 req/sec in evenly spaced intervals
-const intervalMs = 10;
-const reqsPerTick = Math.ceil(TARGET_RPS / (1000 / intervalMs));
+// Tick in 5ms intervals for maximum throughput
+const intervalMs = 5;
+const reqsPerTick = Math.max(1, Math.ceil(TARGET_RPS / (1000 / intervalMs)));
 
 const workerTimer = setInterval(() => {
   if (!isRunning) return;
@@ -89,7 +89,7 @@ function stop() {
   isRunning = false;
   clearInterval(workerTimer);
   clearInterval(reporterTimer);
-  const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  const totalElapsed = Math.max(0.1, (Date.now() - startTime) / 1000).toFixed(1);
   console.log(`\n======================================================`);
   console.log(`🏁 LOAD TEST COMPLETE`);
   console.log(`⏱ Total Duration: ${totalElapsed}s`);
