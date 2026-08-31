@@ -2,9 +2,9 @@
   --bg-color: #0b0f19;
   --card-bg: #131b2e;
   --card-border: #1e293b;
-  --primary-color: #f97316; /* Sunset Orange for v0.5 */
-  --primary-glow: rgba(249, 115, 22, 0.35);
-  --primary-badge-bg: rgba(249, 115, 22, 0.15);
+  --primary-color: #10b981; /* Emerald Mint for v0.6 */
+  --primary-glow: rgba(16, 185, 129, 0.35);
+  --primary-badge-bg: rgba(16, 185, 129, 0.15);
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
 }
