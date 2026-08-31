@@ -58,9 +58,11 @@ jobs:
             echo "==> Ensuring Minikube and Kubernetes are running..."
             minikube status || minikube start --driver=docker
 
-            echo "==> Building immutable Docker image on EC2..."
-            docker build --no-cache -f docker/Dockerfile -t zero-downtime:${{ github.sha }} .
+            echo "==> Building and loading images into Minikube..."
+            docker build --no-cache -f docker/Dockerfile -t zero-downtime:${{ github.sha }} -t zero-downtime:latest -t zero-downtime:v1 .
             minikube image load zero-downtime:${{ github.sha }}
+            minikube image load zero-downtime:latest
+            minikube image load zero-downtime:v1
 
             echo "==> Applying base Kubernetes resources..."
             kubectl apply -f k8s/namespace.yaml
