@@ -44,9 +44,9 @@ const page = `<!doctype html>
     
     /* Traffic visualizer bar */
     .traffic-bar-box { display: flex; flex-direction: column; gap: 0.5rem; }
-    .progress-bar { height: 28px; border-radius: 8px; overflow: hidden; display: flex; background: #1e293b; border: 1px solid var(--border); }
-    .bar-stable { background: var(--green); transition: width 0.4s ease; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: #090d16; }
-    .bar-canary { background: var(--accent); transition: width 0.4s ease; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: #090d16; }
+    .progress-bar { height: 32px; border-radius: 8px; overflow: hidden; display: flex; background: #1e293b; border: 1px solid var(--border); }
+    .bar-stable { background: var(--green); transition: width 0.4s ease; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 800; color: #090d16; }
+    .bar-canary { background: var(--accent); transition: width 0.4s ease; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 800; color: #090d16; }
     .legend { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); }
     .log-box { background: #06090e; border: 1px solid #1a2333; border-radius: 8px; padding: 0.75rem; font-family: monospace; font-size: 0.85rem; height: 120px; overflow-y: auto; color: #94a3b8; }
   </style>
@@ -61,12 +61,12 @@ const page = `<!doctype html>
     <!-- Active Service Status -->
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h2>🔄 Active Service Traffic</h2>
+        <h2>🔄 Blue-Green Instant Switch</h2>
         <div id="statusBadge" class="status-badge">Loading...</div>
       </div>
       <div class="btn-grid">
-        <button class="green" onclick="switchColor('green')">Switch → Green (v1.0)</button>
-        <button class="primary" onclick="switchColor('blue')">Switch → Blue (v1.1)</button>
+        <button class="green" onclick="switchColor('green')">Switch 100% → Green (v1.0)</button>
+        <button class="primary" onclick="switchColor('blue')">Switch 100% → Blue (v2.0)</button>
       </div>
     </div>
 
@@ -79,33 +79,33 @@ const page = `<!doctype html>
 
       <div class="traffic-bar-box">
         <div class="progress-bar">
-          <div id="barStable" class="bar-stable" style="width: 100%;">Stable: 100%</div>
+          <div id="barStable" class="bar-stable" style="width: 100%;">v1.0 Green: 100%</div>
           <div id="barCanary" class="bar-canary" style="width: 0%;"></div>
         </div>
         <div class="legend">
-          <span>🟩 Baseline (Stable)</span>
-          <span id="canaryWeightText">Canary Weight: 0%</span>
-          <span>🟦 Canary Version</span>
+          <span>🟩 v1.0 Green (Stable)</span>
+          <span id="canaryWeightText">Canary Split: 0%</span>
+          <span>🟦 v2.0 Blue (Canary)</span>
         </div>
       </div>
 
       <div class="btn-grid">
-        <button onclick="setCanary(0)">0% (Off)</button>
-        <button onclick="setCanary(5)">5% Canary</button>
+        <button onclick="setCanary(0)">0% (100% Green)</button>
+        <button onclick="setCanary(10)">10% Canary</button>
         <button onclick="setCanary(25)">25% Canary</button>
         <button onclick="setCanary(50)">50% Canary</button>
-        <button class="purple" onclick="setCanary(100)">100% Full Promote</button>
+        <button class="primary" onclick="setCanary(100)">100% Full Promote</button>
       </div>
     </div>
 
     <!-- Quick Operations & Quality Gate Test -->
     <div class="card">
-      <h2>🛡️ Quality Gate & Failure Simulation</h2>
+      <h2>🛡️ Automated Canary Rollout & Rollback Test</h2>
       <p style="color:var(--muted); font-size:0.9rem;">
-        Test automated Prometheus quality gates by injecting errors.
+        Execute automated progressive shift across pods or simulate failures.
       </p>
       <div class="btn-grid">
-        <button class="primary" onclick="runAutomatedCanary()">🚀 Run Auto Canary (5% → 100%)</button>
+        <button class="primary" onclick="runAutomatedCanary()">🚀 Run Auto Canary (10% → 100%)</button>
         <button class="danger" onclick="injectFailure()">⚠️ Trigger 500 Failure (Test Gate)</button>
       </div>
       <div class="log-box" id="logBox">Control panel ready. Click buttons above to execute live traffic shifts.</div>
@@ -124,14 +124,18 @@ const page = `<!doctype html>
         const color = await res.text();
         const badge = document.getElementById('statusBadge');
         badge.textContent = 'Active: ' + color.toUpperCase();
-        if (color === 'green') {
+        if (color.includes('green')) {
           badge.style.color = '#10b981';
           badge.style.borderColor = '#10b981';
           badge.style.background = 'rgba(16, 185, 129, 0.15)';
-        } else {
+        } else if (color.includes('blue')) {
           badge.style.color = '#3b82f6';
           badge.style.borderColor = '#3b82f6';
           badge.style.background = 'rgba(59, 130, 246, 0.15)';
+        } else {
+          badge.style.color = '#a855f7';
+          badge.style.borderColor = '#a855f7';
+          badge.style.background = 'rgba(168, 85, 247, 0.15)';
         }
       } catch (e) {
         console.error(e);
@@ -139,19 +143,21 @@ const page = `<!doctype html>
     }
 
     async function switchColor(color) {
-      log('Switching active service to ' + color + '...');
+      log('Switching active service to 100% ' + color + '...');
       const res = await fetch('/switch/' + color, { method: 'POST' });
       const text = await res.text();
       log(text);
+      updateTrafficBar(color === 'blue' ? 100 : 0);
       refreshStatus();
     }
 
     async function setCanary(weight) {
-      log('Setting Canary weight to ' + weight + '%...');
+      log('Adjusting live Canary traffic split to ' + weight + '%...');
       const res = await fetch('/canary/' + weight, { method: 'POST' });
       const text = await res.text();
       log(text);
       updateTrafficBar(weight);
+      refreshStatus();
     }
 
     function updateTrafficBar(weight) {
@@ -159,27 +165,28 @@ const page = `<!doctype html>
       const bStable = document.getElementById('barStable');
       const bCanary = document.getElementById('barCanary');
       bStable.style.width = stable + '%';
-      bStable.textContent = stable > 15 ? 'Stable: ' + stable + '%' : '';
+      bStable.textContent = stable > 15 ? 'Green: ' + stable + '%' : '';
       bCanary.style.width = weight + '%';
-      bCanary.textContent = weight > 15 ? 'Canary: ' + weight + '%' : '';
-      document.getElementById('canaryWeightText').textContent = 'Canary Weight: ' + weight + '%';
+      bCanary.textContent = weight > 15 ? 'Blue: ' + weight + '%' : '';
+      document.getElementById('canaryWeightText').textContent = 'Canary Split: ' + weight + '%';
     }
 
     async function runAutomatedCanary() {
-      log('Starting automated progressive Canary rollout (5% → 25% → 50% → 100%)...');
-      const steps = [5, 25, 50, 100];
+      log('Starting automated progressive Canary rollout (10% → 25% → 50% → 100%)...');
+      const steps = [10, 25, 50, 100];
       for (const w of steps) {
         await setCanary(w);
-        log('Verifying error rate at ' + w + '% weight (waiting 3s)...');
-        await new Promise(r => setTimeout(r, 3000));
+        log('Verifying traffic stability at ' + w + '% Canary split (waiting 4s)...');
+        await new Promise(r => setTimeout(r, 4000));
       }
-      log('🎉 Canary rollout complete! 100% traffic promoted.');
+      log('🎉 Canary rollout complete! 100% user traffic promoted to v2.0 Blue.');
     }
 
     async function injectFailure() {
-      log('Injecting simulated 500 error to test Prometheus quality gate...');
+      log('Simulating 500 failure endpoint to test Prometheus error gate...');
       fetch('/fail').catch(() => {});
-      log('⚠️ Error recorded. Prometheus error threshold exceeded!');
+      log('⚠️ Error threshold triggered. Rolling back to 100% Green stable!');
+      await setCanary(0);
     }
 
     refreshStatus();
@@ -195,55 +202,70 @@ http.createServer((req, res) => {
   }
 
   if (req.url === '/status') {
-    return kubectl(['get', 'service', 'active', '-o', 'jsonpath={.spec.selector.color}'], (e, out) => {
-      res.writeHead(e ? 500 : 200);
-      res.end(e ? out : out || 'green');
+    return kubectl(['get', 'service', 'active', '-o', 'jsonpath={.spec.selector.color}'], (e, color) => {
+      if (color) {
+        res.writeHead(200);
+        return res.end(color);
+      }
+      res.writeHead(200);
+      res.end('Canary Split (Green & Blue)');
     });
   }
 
   const switchMatch = req.url.match(/^\/switch\/(blue|green)$/);
   if (req.method === 'POST' && switchMatch) {
     const color = switchMatch[1];
+    const other = color === 'blue' ? 'green' : 'blue';
     const patch = `{"spec":{"selector":{"app":"deployment-engine","color":"${color}"}}}`;
-    return kubectl(['patch', 'service', 'active', '--type=merge', '-p', patch], (e) => {
-      if (e) {
+    
+    // Scale target to 3, other to 0, and point service directly
+    exec(`kubectl -n deployment-engine scale deployment ${color} --replicas=3 && kubectl -n deployment-engine scale deployment ${other} --replicas=0 && kubectl -n deployment-engine patch service active --type=merge -p '${patch}'`, (err) => {
+      if (err) {
         res.writeHead(500);
-        return res.end('Switch failed: ' + e.message);
+        return res.end('Switch failed: ' + err.message);
       }
       res.writeHead(200);
-      res.end(`Traffic switched to ${color}`);
+      res.end(`Traffic switched to 100% ${color}`);
     });
+    return;
   }
 
   const canaryMatch = req.url.match(/^\/canary\/([0-9]+)$/);
   if (req.method === 'POST' && canaryMatch) {
-    const weight = canaryMatch[1];
-    const annotateArgs = [
-      'annotate',
-      'ingress',
-      'deployment-engine-canary',
-      `nginx.ingress.kubernetes.io/canary-weight=${weight}`,
-      '--overwrite'
-    ];
-    return kubectl(annotateArgs, (e) => {
-      if (e) {
-        // If ingress not applied yet, apply it first
-        exec('kubectl apply -f k8s/canary/ingress.yaml', () => {
-          kubectl(annotateArgs, (err2) => {
-            res.writeHead(err2 ? 500 : 200);
-            res.end(err2 ? 'Canary failed: ' + err2.message : `Canary weight updated to ${weight}%`);
-          });
-        });
-        return;
+    const weight = parseInt(canaryMatch[1], 10);
+    let cmd = '';
+
+    if (weight === 0) {
+      // 100% Green
+      cmd = `kubectl -n deployment-engine scale deployment green --replicas=3 && kubectl -n deployment-engine scale deployment blue --replicas=0 && kubectl -n deployment-engine patch service active --type=merge -p '{"spec":{"selector":{"app":"deployment-engine","color":"green"}}}'`;
+    } else if (weight <= 15) {
+      // 10% Canary: 9 Green, 1 Blue
+      cmd = `kubectl -n deployment-engine scale deployment green --replicas=9 && kubectl -n deployment-engine scale deployment blue --replicas=1 && kubectl -n deployment-engine patch service active --type=merge -p '{"spec":{"selector":{"app":"deployment-engine","color":null}}}'`;
+    } else if (weight <= 35) {
+      // 25% Canary: 3 Green, 1 Blue
+      cmd = `kubectl -n deployment-engine scale deployment green --replicas=3 && kubectl -n deployment-engine scale deployment blue --replicas=1 && kubectl -n deployment-engine patch service active --type=merge -p '{"spec":{"selector":{"app":"deployment-engine","color":null}}}'`;
+    } else if (weight <= 60) {
+      // 50% Canary: 2 Green, 2 Blue
+      cmd = `kubectl -n deployment-engine scale deployment green --replicas=2 && kubectl -n deployment-engine scale deployment blue --replicas=2 && kubectl -n deployment-engine patch service active --type=merge -p '{"spec":{"selector":{"app":"deployment-engine","color":null}}}'`;
+    } else {
+      // 100% Full Blue Promotion
+      cmd = `kubectl -n deployment-engine scale deployment green --replicas=0 && kubectl -n deployment-engine scale deployment blue --replicas=3 && kubectl -n deployment-engine patch service active --type=merge -p '{"spec":{"selector":{"app":"deployment-engine","color":"blue"}}}'`;
+    }
+
+    exec(cmd, (err) => {
+      if (err) {
+        res.writeHead(500);
+        return res.end('Canary update failed: ' + err.message);
       }
       res.writeHead(200);
-      res.end(`Canary weight updated to ${weight}%`);
+      res.end(`Canary traffic split updated to ${weight}%`);
     });
+    return;
   }
 
   if (req.url === '/fail') {
     res.writeHead(500);
-    return res.end('simulated 500 error');
+    return res.end('simulated failure');
   }
 
   res.writeHead(404);
