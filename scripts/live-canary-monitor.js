@@ -25,8 +25,8 @@ const agent = new http.Agent({ keepAlive: true, maxSockets: 50 });
 
 function inspectVersion(html) {
   if (html.includes('Purple') || html.includes('v1.2') || html.includes('1.2')) return { name: 'Purple (v1.2)', color: '🟪' };
-  if (html.includes('Blue') || html.includes('v1.1') || html.includes('1.1')) return { name: 'Blue (v1.1)', color: '🟦' };
-  if (html.includes('Green') || html.includes('v1.0') || html.includes('1.0')) return { name: 'Green (v1.0)', color: '🟩' };
+  if (html.includes('Blue') || html.includes('v2.0') || html.includes('2.0') || html.includes('v2')) return { name: 'Blue (v2.0)', color: '🟦' };
+  if (html.includes('Green') || html.includes('v1.0') || html.includes('1.0') || html.includes('v1')) return { name: 'Green (v1.0)', color: '🟩' };
   return { name: 'Stable Pod', color: '⬜' };
 }
 

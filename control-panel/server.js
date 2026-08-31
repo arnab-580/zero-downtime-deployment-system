@@ -215,11 +215,10 @@ http.createServer((req, res) => {
   const switchMatch = req.url.match(/^\/switch\/(blue|green)$/);
   if (req.method === 'POST' && switchMatch) {
     const color = switchMatch[1];
-    const other = color === 'blue' ? 'green' : 'blue';
     const patch = `{"spec":{"selector":{"app":"deployment-engine","color":"${color}"}}}`;
     
-    // Scale target to 3, other to 0, and point service directly
-    exec(`kubectl -n deployment-engine scale deployment ${color} --replicas=3 && kubectl -n deployment-engine scale deployment ${other} --replicas=0 && kubectl -n deployment-engine patch service active --type=merge -p '${patch}'`, (err) => {
+    // Ensure both deployments have warm ready pods, and instantly point the service
+    exec(`kubectl -n deployment-engine scale deployment green --replicas=3 && kubectl -n deployment-engine scale deployment blue --replicas=3 && kubectl -n deployment-engine patch service active --type=merge -p '${patch}'`, (err) => {
       if (err) {
         res.writeHead(500);
         return res.end('Switch failed: ' + err.message);
@@ -236,8 +235,8 @@ http.createServer((req, res) => {
     let cmd = '';
 
     if (weight === 0) {
-      // 100% Green
-      cmd = `kubectl -n deployment-engine scale deployment green --replicas=3 && kubectl -n deployment-engine scale deployment blue --replicas=0 && kubectl -n deployment-engine patch service active --type=merge -p '{"spec":{"selector":{"app":"deployment-engine","color":"green"}}}'`;
+      // 100% Green (Keep Blue warm at 2 replicas)
+      cmd = `kubectl -n deployment-engine scale deployment green --replicas=3 && kubectl -n deployment-engine scale deployment blue --replicas=2 && kubectl -n deployment-engine patch service active --type=merge -p '{"spec":{"selector":{"app":"deployment-engine","color":"green"}}}'`;
     } else if (weight <= 15) {
       // 10% Canary: 9 Green, 1 Blue
       cmd = `kubectl -n deployment-engine scale deployment green --replicas=9 && kubectl -n deployment-engine scale deployment blue --replicas=1 && kubectl -n deployment-engine patch service active --type=merge -p '{"spec":{"selector":{"app":"deployment-engine","color":null}}}'`;
@@ -248,8 +247,8 @@ http.createServer((req, res) => {
       // 50% Canary: 2 Green, 2 Blue
       cmd = `kubectl -n deployment-engine scale deployment green --replicas=2 && kubectl -n deployment-engine scale deployment blue --replicas=2 && kubectl -n deployment-engine patch service active --type=merge -p '{"spec":{"selector":{"app":"deployment-engine","color":null}}}'`;
     } else {
-      // 100% Full Blue Promotion
-      cmd = `kubectl -n deployment-engine scale deployment green --replicas=0 && kubectl -n deployment-engine scale deployment blue --replicas=3 && kubectl -n deployment-engine patch service active --type=merge -p '{"spec":{"selector":{"app":"deployment-engine","color":"blue"}}}'`;
+      // 100% Full Blue Promotion (Keep Green warm at 2 replicas for instant rollback!)
+      cmd = `kubectl -n deployment-engine scale deployment green --replicas=2 && kubectl -n deployment-engine scale deployment blue --replicas=3 && kubectl -n deployment-engine patch service active --type=merge -p '{"spec":{"selector":{"app":"deployment-engine","color":"blue"}}}'`;
     }
 
     exec(cmd, (err) => {

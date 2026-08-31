@@ -82,7 +82,7 @@ jobs:
             echo "==> Promoting traffic to new version ($TARGET)..."
             bash ./scripts/promote.sh "$TARGET"
 
-            echo "==> Ensuring automatic browser access (Live Site, Control Panel & Grafana)..."
+            echo "==> Ensuring automatic browser access (Live Site, Control Panel & Prometheus)..."
             bash ./scripts/expose-ports.sh
 
             echo "🎉 Deployment to EC2 completed with ZERO downtime! Website is live on port 8080."
