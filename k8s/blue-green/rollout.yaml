@@ -20,11 +20,8 @@ spec:
     spec:
       containers:
         - name: website
-          image: zero-downtime:v2
+          image: zero-downtime:v1
           imagePullPolicy: IfNotPresent
-          env:
-            - name: APP_VERSION
-              value: "v2"
           ports:
             - containerPort: 80
               name: http
@@ -85,9 +82,6 @@ spec:
         - name: website
           image: zero-downtime:v1
           imagePullPolicy: IfNotPresent
-          env:
-            - name: APP_VERSION
-              value: "v1"
           ports:
             - containerPort: 80
               name: http

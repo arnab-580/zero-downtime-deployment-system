@@ -11,10 +11,6 @@ COPY app/nginx.conf /etc/nginx/conf.d/default.conf
 # Copy single production website source files
 COPY app/index.html app/styles.css ./
 
-# Copy entrypoint script for dynamic v1/v2 theme injection
-COPY docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
 # Expose standard HTTP port
 EXPOSE 80
 
@@ -22,4 +18,4 @@ EXPOSE 80
 HEALTHCHECK --interval=5s --timeout=3s --retries=3 \
   CMD wget --quiet --tries=1 --spider http://127.0.0.1/health || exit 1
 
-ENTRYPOINT ["/entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]
