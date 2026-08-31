@@ -4,6 +4,7 @@ metadata:
   name: preview
   namespace: deployment-engine
 spec:
+  type: NodePort
   selector:
     app: deployment-engine
     color: blue
@@ -11,6 +12,7 @@ spec:
     - name: http
       port: 80
       targetPort: 80
+      nodePort: 30081
     - name: metrics
       port: 9113
       targetPort: 9113

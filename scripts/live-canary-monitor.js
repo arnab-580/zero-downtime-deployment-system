@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 const http = require('node:http');
 
-const targetUrl = process.argv[2] || 'http://127.0.0.1:8080';
+// Sanitize URL input (handles accidental http://http:// or missing protocol)
+let targetUrl = process.argv[2] || 'http://127.0.0.1:8080';
+targetUrl = targetUrl.replace(/^(https?:\/\/)+/, 'http://');
+if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+  targetUrl = 'http://' + targetUrl;
+}
+
 console.clear();
 console.log('========================================================================');
 console.log('🐤 Live Canary Traffic Stream Visualizer');
@@ -10,11 +16,9 @@ console.log('⚡ Streaming live requests... Watch the ratio shift during canary 
 console.log('========================================================================\n');
 
 let windowRequests = [];
-const WINDOW_SIZE = 50;
+const WINDOW_SIZE = 40;
 
 let totalRequests = 0;
-let stableCount = 0;
-let canaryCount = 0;
 let errorCount = 0;
 
 const agent = new http.Agent({ keepAlive: true, maxSockets: 50 });

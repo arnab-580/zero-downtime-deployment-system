@@ -8,7 +8,7 @@ pkill -f "control-panel/server.js" 2>/dev/null || true
 pkill -f "port-forward --address 0.0.0.0 svc/grafana" 2>/dev/null || true
 pkill -f "port-forward --address 0.0.0.0 svc/prometheus" 2>/dev/null || true
 
-# Ensure socat is installed for zero-drop high concurrency throughput
+# Ensure socat is installed for high-speed zero-drop kernel proxying
 if ! command -v socat >/dev/null 2>&1; then
   sudo apt-get update -y && sudo apt-get install -y socat || true
 fi

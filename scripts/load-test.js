@@ -1,13 +1,19 @@
 #!/usr/bin/env node
 const http = require('node:http');
 
-const url = process.argv[2] || 'http://127.0.0.1:8080';
+// Sanitize URL input (handles accidental http://http:// or missing protocol)
+let rawUrl = process.argv[2] || 'http://127.0.0.1:8080';
+rawUrl = rawUrl.replace(/^(https?:\/\/)+/, 'http://');
+if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
+  rawUrl = 'http://' + rawUrl;
+}
+
 const totalRequests = parseInt(process.argv[3], 10) || 100000;
 const concurrency = parseInt(process.argv[4], 10) || 100;
 
 console.log('====================================================');
 console.log('🚀 Zero-Downtime Load Test Generator');
-console.log(`🎯 Target URL:     ${url}`);
+console.log(`🎯 Target URL:     ${rawUrl}`);
 console.log(`📊 Total Requests: ${totalRequests.toLocaleString()}`);
 console.log(`⚡ Concurrency:    ${concurrency} simultaneous workers`);
 console.log('====================================================\n');
@@ -24,7 +30,7 @@ let failCount = 0;
 let inFlight = 0;
 const startTime = Date.now();
 
-const parsedUrl = new URL(url);
+const parsedUrl = new URL(rawUrl);
 const requestOptions = {
   hostname: parsedUrl.hostname,
   port: parsedUrl.port || 80,
@@ -33,8 +39,8 @@ const requestOptions = {
   agent: agent,
   timeout: 10000,
   headers: {
-    'Connection': 'keep-alive'
-  }
+    Connection: 'keep-alive',
+  },
 };
 
 function sendRequest() {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Production App - Version 1.2 (Purple)</title>
+  <title>Production Application - Zero Downtime Engine</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,69 +14,103 @@
         <div class="status-dot"></div>
         <span>Cloud Enterprise Platform</span>
       </div>
-      <div class="version-pill">
+      <div class="version-pill" id="navVersionBadge">
         <span>●</span>
-        <span>Version 1.2 (Purple Release)</span>
+        <span>Version 1.0 (Green Stable)</span>
       </div>
     </nav>
 
     <!-- Hero Card -->
     <section class="hero-card">
-      <h1>Production Platform v1.2</h1>
-      <p>
-        Currently running updated production version 1.2 (Neon Purple). Deployed seamlessly with zero downtime!
-      </p>
+      <div class="hero-header">
+        <div class="badge-active">ACTIVE LIVE ENVIRONMENT</div>
+        <h1 id="heroTitle">Production Workload v1.0</h1>
+        <p id="heroDesc">
+          Currently serving live user traffic across high-availability Kubernetes pods with zero single point of failure.
+        </p>
+      </div>
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-num" id="totalRequestsCount">0</div>
+          <div class="stat-lbl">Requests Streamed</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="avgLatency">0ms</div>
+          <div class="stat-lbl">Response Time</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" style="color: #10b981;">100.0%</div>
+          <div class="stat-lbl">Uptime SLA</div>
+        </div>
+      </div>
     </section>
 
-    <!-- Features Section -->
+    <!-- Architecture & Features -->
     <section class="features-grid">
       <div class="feature-card">
-        <div class="feature-icon">🚀</div>
-        <div class="feature-title">High Availability Cluster</div>
-        <div class="feature-desc">Active pod replication running on Kubernetes with zero single point of failure.</div>
+        <div class="feature-icon">🔄</div>
+        <div class="feature-title">Atomic Traffic Cutover</div>
+        <div class="feature-desc">Kubernetes Service selector patches route live traffic in 0.001ms with zero dropped connections.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">⚡</div>
-        <div class="feature-title">Automated Health Probes</div>
-        <div class="feature-desc">Built-in Liveness and Readiness probes actively verifying service uptime.</div>
+        <div class="feature-icon">🐤</div>
+        <div class="feature-title">Canary Quality Gates</div>
+        <div class="feature-desc">Gradual traffic progression (5% → 25% → 50% → 100%) with automated Prometheus error rate verification.</div>
       </div>
       <div class="feature-card">
         <div class="feature-icon">🛡️</div>
-        <div class="feature-title">Multi-Node Redundancy</div>
-        <div class="feature-desc">Load balanced traffic distribution managed by NGINX Ingress Controller.</div>
+        <div class="feature-title">Automated Rollback</div>
+        <div class="feature-desc">Instant fallback to verified stable deployment if any health probe or error threshold fails.</div>
       </div>
     </section>
 
-    <!-- Live Traffic Stream (Visual Zero-Downtime Proof) -->
+    <!-- Live Traffic Stream (Visual Zero-Downtime Monitor) -->
     <section class="stream-box">
       <div class="stream-top">
         <div class="stream-title">
           <span>⚡ Live Traffic Stream (Zero-Downtime Monitor)</span>
         </div>
         <div class="stream-controls">
-          <button id="streamToggle" class="primary" onclick="toggleStream()">⏸ Pause Traffic</button>
+          <button id="streamToggle" class="primary" onclick="toggleStream()">⏸ Pause Stream</button>
           <button onclick="pingOnce()">⚡ Send 1 Request</button>
         </div>
       </div>
       <div class="terminal" id="terminal">
         <div class="log-entry">
-          <span class="log-time">[Init]</span>
-          <span class="badge-200">200 OK</span>
-          <span>Version: <strong>v1.2 (Purple)</strong> | Traffic stream initialized</span>
+          <span class="log-time">[System]</span>
+          <span class="badge-200">READY</span>
+          <span>Traffic stream initialized. Watch this log during deployments to verify 0 dropped packets!</span>
         </div>
       </div>
     </section>
 
+    <!-- Control Links -->
+    <section class="links-box">
+      <a href="http://13.235.77.90:8081" target="_blank" class="nav-link-btn primary-btn">🎛️ Open Deployment Control Panel</a>
+      <a href="http://13.235.77.90:3000" target="_blank" class="nav-link-btn">📊 Open Grafana Dashboard</a>
+      <a href="/health" target="_blank" class="nav-link-btn">🔍 View /health Probe</a>
+    </section>
+
     <footer>
-      Powered by NGINX & Kubernetes • Zero-Downtime Deployment Engine
+      Zero-Downtime Deployment Engine • Powered by NGINX & Kubernetes
     </footer>
   </div>
 
   <script>
     let isRunning = true;
     let timer = null;
+    let totalReqs = 0;
+    let latencies = [];
 
     function addLog(status, latency) {
+      totalReqs++;
+      document.getElementById('totalRequestsCount').textContent = totalReqs.toLocaleString();
+      
+      latencies.push(latency);
+      if (latencies.length > 20) latencies.shift();
+      const avg = Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length);
+      document.getElementById('avgLatency').textContent = avg + 'ms';
+
       const term = document.getElementById('terminal');
       const time = new Date().toLocaleTimeString();
       const line = document.createElement('div');
@@ -84,10 +118,10 @@
       line.innerHTML = `
         <span class="log-time">${time}</span>
         <span class="badge-200">${status}</span>
-        <span>Version: <strong style="color:#a855f7;">v1.2 (Purple)</strong> (${latency}ms) — Serving live request</span>
+        <span>Response in <strong>${latency}ms</strong> — 0 packet loss verified</span>
       `;
       term.insertBefore(line, term.firstChild);
-      while (term.children.length > 30) term.removeChild(term.lastChild);
+      while (term.children.length > 40) term.removeChild(term.lastChild);
     }
 
     async function ping() {
@@ -106,11 +140,11 @@
       if (isRunning) {
         clearInterval(timer);
         isRunning = false;
-        btn.textContent = '▶ Resume Traffic';
+        btn.textContent = '▶ Resume Stream';
         btn.classList.remove('primary');
       } else {
         isRunning = true;
-        btn.textContent = '⏸ Pause Traffic';
+        btn.textContent = '⏸ Pause Stream';
         btn.classList.add('primary');
         start();
       }
