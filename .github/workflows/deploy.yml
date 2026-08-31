@@ -68,7 +68,10 @@ jobs:
 
             echo "==> Applying base Kubernetes resources..."
             kubectl apply -f k8s/namespace.yaml
-            kubectl apply -f k8s/blue-green/rollout.yaml
+            
+            # Only apply base rollout if deployments do not exist yet (prevents overwriting running versions)
+            kubectl -n deployment-engine get deployment blue >/dev/null 2>&1 || kubectl apply -f k8s/blue-green/rollout.yaml
+            
             kubectl apply -f k8s/services/preview-service.yaml
             kubectl apply -f k8s/services/active-service.yaml
             kubectl apply -f k8s/monitoring.yaml
