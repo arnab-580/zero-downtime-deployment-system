@@ -9,6 +9,8 @@ jobs:
   deploy:
     name: Build, Test & Deploy to EC2
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Code
@@ -30,20 +32,26 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script_stop: true
           script: |
-            set -e
+            set -ex
             echo "==> Connected to EC2 successfully"
 
             # Create or navigate to workspace directory
             mkdir -p ~/zero-downtime-engine
             cd ~/zero-downtime-engine
 
-            # Sync code from GitHub (or git pull if cloned)
-            # You can also clone once: git clone <repo_url> .
+            # Configure git safe directory
+            git config --global --add safe.directory ~/zero-downtime-engine || true
+
+            # Sync code from GitHub using GITHUB_TOKEN for authentication
+            REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
             if [ -d ".git" ]; then
+              git remote set-url origin "$REPO_URL"
               git fetch origin main
               git reset --hard origin/main
             else
-              git clone https://github.com/${{ github.repository }}.git .
+              rm -rf ..?* .[!.]* * 2>/dev/null || true
+              git clone "$REPO_URL" .
             fi
 
             echo "==> Ensuring Minikube and Kubernetes are running..."
