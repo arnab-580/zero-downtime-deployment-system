@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Production App - Version 1.1 (Blue)</title>
+  <title>Production App - Version 1.2 (Purple)</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -16,15 +16,15 @@
       </div>
       <div class="version-pill">
         <span>●</span>
-        <span>Version 1.1 (Blue Release)</span>
+        <span>Version 1.2 (Purple Release)</span>
       </div>
     </nav>
 
     <!-- Hero Card -->
     <section class="hero-card">
-      <h1>Production Platform v1.1</h1>
+      <h1>Production Platform v1.2</h1>
       <p>
-        Currently running updated production version 1.1 (Blue). Deployed seamlessly with zero downtime!
+        Currently running updated production version 1.2 (Neon Purple). Deployed seamlessly with zero downtime!
       </p>
     </section>
 
@@ -62,7 +62,7 @@
         <div class="log-entry">
           <span class="log-time">[Init]</span>
           <span class="badge-200">200 OK</span>
-          <span>Version: <strong>v1.1 (Blue)</strong> | Traffic stream initialized</span>
+          <span>Version: <strong>v1.2 (Purple)</strong> | Traffic stream initialized</span>
         </div>
       </div>
     </section>
@@ -84,7 +84,7 @@
       line.innerHTML = `
         <span class="log-time">${time}</span>
         <span class="badge-200">${status}</span>
-        <span>Version: <strong style="color:#3b82f6;">v1.1 (Blue)</strong> (${latency}ms) — Serving live request</span>
+        <span>Version: <strong style="color:#a855f7;">v1.2 (Purple)</strong> (${latency}ms) — Serving live request</span>
       `;
       term.insertBefore(line, term.firstChild);
       while (term.children.length > 30) term.removeChild(term.lastChild);

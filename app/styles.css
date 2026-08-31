@@ -2,9 +2,9 @@
   --bg-color: #090d16;
   --card-bg: #131b2e;
   --card-border: #1e293b;
-  --primary-color: #3b82f6; /* Royal Blue for v1.1 */
-  --primary-glow: rgba(59, 130, 246, 0.35);
-  --primary-badge-bg: rgba(59, 130, 246, 0.15);
+  --primary-color: #a855f7; /* Neon Purple for v1.2 */
+  --primary-glow: rgba(168, 85, 247, 0.35);
+  --primary-badge-bg: rgba(168, 85, 247, 0.15);
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
 }
@@ -239,8 +239,8 @@ button.primary:hover {
 }
 
 .badge-200 {
-  background: rgba(59, 130, 246, 0.2);
-  color: #3b82f6;
+  background: rgba(168, 85, 247, 0.2);
+  color: #a855f7;
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
   font-weight: bold;
