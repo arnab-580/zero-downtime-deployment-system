@@ -30,9 +30,9 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          script_stop: true
           script: |
-            set -ex
+            bash -e << 'EOF'
+            set -x
             echo "==> Connected to EC2 successfully"
 
             # Create or navigate to workspace directory
@@ -42,8 +42,8 @@ jobs:
             # Configure git safe directory
             git config --global --add safe.directory ~/zero-downtime-engine || true
 
-            # Sync code from GitHub using GITHUB_TOKEN for authentication
-            REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            # Sync code from GitHub
+            REPO_URL="https://github.com/${{ github.repository }}.git"
 
             if [ -d ".git" ]; then
               git remote set-url origin "$REPO_URL"
@@ -82,3 +82,4 @@ jobs:
             echo "==> Promoting traffic to new version ($TARGET)..."
             bash ./scripts/promote.sh "$TARGET"
             echo "🎉 Deployment to EC2 completed with ZERO downtime!"
+            EOF
