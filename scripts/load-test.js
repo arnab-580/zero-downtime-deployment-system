@@ -15,6 +15,7 @@ console.log('====================================================\n');
 const agent = new http.Agent({
   keepAlive: true,
   maxSockets: concurrency * 2,
+  keepAliveMsecs: 10000,
 });
 
 let completed = 0;
@@ -30,7 +31,10 @@ const requestOptions = {
   path: parsedUrl.pathname + parsedUrl.search,
   method: 'GET',
   agent: agent,
-  timeout: 5000,
+  timeout: 10000,
+  headers: {
+    'Connection': 'keep-alive'
+  }
 };
 
 function sendRequest() {
