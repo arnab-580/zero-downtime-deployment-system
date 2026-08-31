@@ -84,9 +84,9 @@ const page = `<!doctype html>
           <div id="barBlue" class="bar-blue" style="width: 0%;"></div>
         </div>
         <div class="legend">
-          <span>🟢 GREEN (Stable v0.4)</span>
+          <span>🟢 GREEN Deployment</span>
           <span id="canaryWeightText" style="color:#fff; font-weight:700;">Canary: 0%</span>
-          <span>🔵 BLUE (New v0.5)</span>
+          <span>🔵 BLUE Deployment</span>
         </div>
       </div>
 
@@ -140,7 +140,7 @@ const page = `<!doctype html>
       bBlue.style.width = blueWeight + '%';
       bBlue.textContent = blueWeight > 15 ? 'BLUE: ' + blueWeight + '%' : '';
       
-      document.getElementById('canaryWeightText').textContent = 'Blue Canary: ' + blueWeight + '%';
+      document.getElementById('canaryWeightText').textContent = 'Blue: ' + blueWeight + '% | Green: ' + greenWeight + '%';
     }
 
     async function refreshStatus() {
