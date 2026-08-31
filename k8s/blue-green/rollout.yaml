@@ -7,7 +7,7 @@ metadata:
     app: deployment-engine
     color: blue
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: deployment-engine
@@ -20,30 +20,30 @@ spec:
     spec:
       containers:
         - name: website
-          image: zero-downtime:v1
+          image: zero-downtime:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
               name: http
           resources:
             requests:
-              cpu: "50m"
-              memory: "32Mi"
+              cpu: "10m"
+              memory: "16Mi"
             limits:
-              cpu: "200m"
-              memory: "64Mi"
+              cpu: "100m"
+              memory: "32Mi"
           readinessProbe:
             httpGet:
               path: /ready
               port: 80
             initialDelaySeconds: 2
-            periodSeconds: 5
+            periodSeconds: 3
           livenessProbe:
             httpGet:
               path: /health
               port: 80
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            initialDelaySeconds: 3
+            periodSeconds: 5
         - name: exporter
           image: nginx/nginx-prometheus-exporter:1.3.0
           args: ["-nginx.scrape-uri=http://127.0.0.1:80/stub_status"]
@@ -52,11 +52,11 @@ spec:
               name: metrics
           resources:
             requests:
-              cpu: "10m"
-              memory: "16Mi"
+              cpu: "5m"
+              memory: "10Mi"
             limits:
-              cpu: "50m"
-              memory: "32Mi"
+              cpu: "30m"
+              memory: "20Mi"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -67,7 +67,7 @@ metadata:
     app: deployment-engine
     color: green
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: deployment-engine
@@ -80,30 +80,30 @@ spec:
     spec:
       containers:
         - name: website
-          image: zero-downtime:v1
+          image: zero-downtime:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
               name: http
           resources:
             requests:
-              cpu: "50m"
-              memory: "32Mi"
+              cpu: "10m"
+              memory: "16Mi"
             limits:
-              cpu: "200m"
-              memory: "64Mi"
+              cpu: "100m"
+              memory: "32Mi"
           readinessProbe:
             httpGet:
               path: /ready
               port: 80
             initialDelaySeconds: 2
-            periodSeconds: 5
+            periodSeconds: 3
           livenessProbe:
             httpGet:
               path: /health
               port: 80
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            initialDelaySeconds: 3
+            periodSeconds: 5
         - name: exporter
           image: nginx/nginx-prometheus-exporter:1.3.0
           args: ["-nginx.scrape-uri=http://127.0.0.1:80/stub_status"]
@@ -112,8 +112,8 @@ spec:
               name: metrics
           resources:
             requests:
-              cpu: "10m"
-              memory: "16Mi"
+              cpu: "5m"
+              memory: "10Mi"
             limits:
-              cpu: "50m"
-              memory: "32Mi"
+              cpu: "30m"
+              memory: "20Mi"

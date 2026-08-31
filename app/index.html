@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Production Web Service • v0.1</title>
+  <title>Production Web Service • v0.2</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="container">
     <!-- Version Release Banner -->
     <div class="version-banner">
-      <span class="badge-tag">RELEASE v0.1</span>
-      <span class="banner-text">Production Web Service • Initial Baseline Release</span>
+      <span class="badge-tag">RELEASE v0.2</span>
+      <span class="banner-text">Production Web Service • Next-Generation Upgrade v0.2</span>
     </div>
 
     <!-- Navigation Bar -->
@@ -22,18 +22,17 @@
       </div>
       <div class="version-pill">
         <span>●</span>
-        <span>Version 0.1 (Stable)</span>
+        <span>Version 0.2 (Next-Gen)</span>
       </div>
     </nav>
 
     <!-- Main Hero Card -->
     <section class="hero-card">
       <div class="hero-header">
-        <div class="badge-active">ACTIVE DEPLOYMENT WORKLOAD</div>
-        <h1>Production Workload v0.1</h1>
+        <div class="badge-active">ACTIVE LIVE WORKLOAD (v0.2)</div>
+        <h1>Production Workload v0.2</h1>
         <p>
-          Currently serving live production traffic across high-availability Kubernetes pods. 
-          The Zero-Downtime Engine is actively routing user requests and monitoring system health.
+          Serving next-generation release v0.2 with enhanced performance, real-time traffic telemetry, and zero-downtime cutover across Kubernetes pods.
         </p>
       </div>
 
@@ -57,6 +56,11 @@
     <!-- Core Architecture Capabilities -->
     <section class="features-grid">
       <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-title">Next-Gen v0.2 Engine</div>
+        <div class="feature-desc">Micro-container footprint with optimized static assets and line-rate Kubernetes routing.</div>
+      </div>
+      <div class="feature-card">
         <div class="feature-icon">🔄</div>
         <div class="feature-title">Atomic Blue-Green Switching</div>
         <div class="feature-desc">Zero connection drops during workload cutovers via instant Kubernetes service selector routing.</div>
@@ -64,12 +68,7 @@
       <div class="feature-card">
         <div class="feature-icon">🐤</div>
         <div class="feature-title">Canary Traffic Progression</div>
-        <div class="feature-desc">Progressive traffic validation (10% → 25% → 50% → 100%) with automated Prometheus quality gates.</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🛡️</div>
-        <div class="feature-title">Instant Zero-Downtime Rollback</div>
-        <div class="feature-desc">Warm standby pods maintain instant failover readiness in case of error rate spikes.</div>
+        <div class="feature-desc">Progressive traffic validation with automated Prometheus error rate verification.</div>
       </div>
     </section>
 
@@ -95,13 +94,13 @@
 
     <!-- System Links -->
     <section class="links-box">
-      <a href="http://13.235.77.90:8081" target="_blank" class="nav-link-btn primary-btn">🎛️ Deployment Control Panel</a>
+      <a href="http://13.235.77.90:8081" target="_blank" class="nav-link-btn primary-btn">🎛️ Deployment Control Panel (:8081)</a>
       <a href="http://13.235.77.90:9090" target="_blank" class="nav-link-btn">📊 Prometheus Metrics Engine (:9090)</a>
-      <a href="/health" target="_blank" class="nav-link-btn">🔍 Health Probe</a>
+      <a href="/health" target="_blank" class="nav-link-btn">🔍 Health Probe (/health)</a>
     </section>
 
     <footer>
-      Zero-Downtime Deployment Engine • Version v0.1 • NGINX & Kubernetes
+      Zero-Downtime Deployment Engine • Version v0.2 (Next-Gen) • NGINX & Kubernetes
     </footer>
   </div>
 
@@ -127,7 +126,7 @@
       line.innerHTML = `
         <span class="log-time">${time}</span>
         <span class="badge-200">${status}</span>
-        <span>v0.1 responded in <strong>${latency}ms</strong> — 0 connection loss verified</span>
+        <span>v0.2 responded in <strong>${latency}ms</strong> — 0 connection loss verified</span>
       `;
       term.insertBefore(line, term.firstChild);
       while (term.children.length > 40) term.removeChild(term.lastChild);
