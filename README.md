@@ -1,22 +1,55 @@
-# Zero-Downtime Deployment Engine
+# Zero-Downtime Deployment Engine (Pure NGINX)
 
-This repository demonstrates a deployment system: CI tests and builds an immutable image, deploys a second version, waits for Kubernetes readiness, and only then changes traffic.
+An enterprise-grade Zero-Downtime Deployment Engine running on Kubernetes and lightweight Alpine NGINX (~15MB image, 0 Node.js dependencies).
 
-## Local verification
+---
 
-```bash
-npm test --prefix app
-docker build -f docker/Dockerfile -t zero-downtime:v2 .
-docker run --rm -p 8080:8080 -e APP_VERSION=v2 zero-downtime:v2
-curl http://localhost:8080/health
+## 📁 Real-World Single Source Directory
+
+In real production, you maintain a single codebase:
+```
+app/
+├── nginx.conf   <-- NGINX routing and /health probes
+├── index.html   <-- Your active website HTML
+└── styles.css   <-- Your active website CSS
 ```
 
-## Release strategies
+---
 
-Blue/green keeps blue serving through the green rollout. `preview` exposes green for smoke tests; `active` is the load-balancer switch. Run `scripts/deploy-blue-green.sh` to promote and `scripts/rollback.sh` to restore the other color.
+## 🚀 Step 1: Deploy Version 1.0 (Green UI)
 
-Canary progresses 5%, 25%, and 100%. Each stage must pass readiness and an error-rate gate before continuing. Connect `canary.weight` to a weighted ingress/controller in production.
+### 1. Build the v1 Image:
+```bash
+docker build -f docker/Dockerfile -t zero-downtime:v1 .
+```
 
-## Monitoring and security
+### 2. Verify Locally:
+```bash
+docker run --rm -p 8080:80 zero-downtime:v1
+```
+Open `http://localhost:8080` to see the **Green v1.0** website with live traffic monitoring.
 
-`k8s/monitoring.yaml` deploys Prometheus and Grafana. Prometheus scrapes the application `/metrics` endpoint; Grafana is available through its Kubernetes service. The CI workflow scans every versioned image with Trivy and fails on HIGH or CRITICAL vulnerabilities. `scripts/deploy-canary.sh` updates NGINX canary weights and calls `scripts/canary-gate.sh`; a failed error-rate query invokes rollback automatically.
+### 3. Deploy to Kubernetes:
+```bash
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/blue-green/rollout.yaml
+kubectl apply -f k8s/services/active-service.yaml
+```
+
+---
+
+## 🔄 Step 2: Release Version 1.1 (Blue UI with New Features)
+
+When you are ready to update the website:
+
+1. **Edit `app/index.html` and `app/styles.css` directly in place** (e.g., change the theme to Blue and add new feature cards or banners).
+2. **Build the updated image as `v2`:**
+   ```bash
+   docker build -f docker/Dockerfile -t zero-downtime:v2 .
+   ```
+3. **Execute the Canary Rollout:**
+   ```bash
+   ./scripts/deploy-canary.sh
+   ```
+
+The Ingress will shift traffic gradually (**5% $\rightarrow$ 25% $\rightarrow$ 50% $\rightarrow$ 100%**) to the new Blue version while verifying zero 5xx errors with Prometheus.

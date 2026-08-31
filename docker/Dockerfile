@@ -1,15 +1,21 @@
-FROM node:22-bookworm-slim
+FROM nginx:1.27-alpine-slim
 
-WORKDIR /app
+WORKDIR /usr/share/nginx/html
 
-RUN apt-get update \
-    && apt-get upgrade -y \
-    && rm -rf /var/lib/apt/lists/* /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+# Clean up default configs
+RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
 
-COPY app/src ./src
+# Copy NGINX server configuration
+COPY app/nginx.conf /etc/nginx/conf.d/default.conf
 
-USER node
-ENV PORT=8080
-EXPOSE 8080
+# Copy single production website source files
+COPY app/index.html app/styles.css ./
 
-CMD ["node", "src/server.js"]
+# Expose standard HTTP port
+EXPOSE 80
+
+# Health check inside Docker
+HEALTHCHECK --interval=5s --timeout=3s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://127.0.0.1/health || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

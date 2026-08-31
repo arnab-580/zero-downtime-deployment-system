@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zero-Downtime Engine | {{VERSION}}</title>
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+      /* Theme variables customized dynamically by version */
+      --theme-color: {{THEME_COLOR}};
+      --theme-glow: {{THEME_GLOW}};
+      --theme-badge-bg: {{THEME_BADGE_BG}};
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 900px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .header-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .header-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--theme-color);
+      box-shadow: 0 0 12px var(--theme-glow);
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: var(--theme-color);
+      box-shadow: 0 0 8px var(--theme-glow);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.1); }
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    .version-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--theme-badge-bg);
+      color: var(--theme-color);
+      border: 1px solid var(--theme-color);
+      padding: 0.4rem 1rem;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .description {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      line-height: 1.6;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .stat-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Live traffic stream visualizer */
+    .stream-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .stream-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .stream-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .stream-controls {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    button {
+      background: #334155;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    button:hover {
+      background: #475569;
+    }
+
+    button.primary {
+      background: var(--theme-color);
+      color: #0f172a;
+      border-color: var(--theme-color);
+    }
+
+    button.primary:hover {
+      opacity: 0.9;
+      box-shadow: 0 0 10px var(--theme-glow);
+    }
+
+    button.danger {
+      background: #dc2626;
+      color: #ffffff;
+      border-color: #ef4444;
+    }
+
+    button.danger:hover {
+      background: #b91c1c;
+    }
+
+    .terminal-box {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.88rem;
+      height: 220px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 0.4rem;
+    }
+
+    .log-line {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      line-height: 1.4;
+    }
+
+    .log-time {
+      color: #64748b;
+      font-size: 0.75rem;
+      min-width: 75px;
+    }
+
+    .badge-ok {
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 0.75rem;
+    }
+
+    .badge-err {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 0.75rem;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+
+    .feature-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .feature-card h3 {
+      font-size: 1rem;
+      color: var(--theme-color);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .feature-card p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header Hero Card -->
+    <div class="header-card">
+      <div class="header-top">
+        <div class="title-group">
+          <div class="status-dot"></div>
+          <h1>Production Application</h1>
+        </div>
+        <div class="version-badge" id="versionBadge">
+          <span>●</span>
+          <span>Version: {{VERSION}}</span>
+        </div>
+      </div>
+      <p class="description">
+        {{RELEASE_DESCRIPTION}}
+      </p>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Active Color</div>
+        <div class="stat-value" id="activeColorDisplay" style="color: var(--theme-color);">{{COLOR_NAME}}</div>
+        <div class="stat-sub">Managed via Kubernetes Service</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Requests</div>
+        <div class="stat-value" id="reqCounter">{{REQUESTS_COUNT}}</div>
+        <div class="stat-sub">Live Pod Counter</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Error Rate</div>
+        <div class="stat-value" id="errorCounter">{{ERRORS_COUNT}}</div>
+        <div class="stat-sub">Monitored by Prometheus</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Uptime Status</div>
+        <div class="stat-value" style="color: #4ade80;">100% OK</div>
+        <div class="stat-sub">Zero Dropped Connections</div>
+      </div>
+    </div>
+
+    <!-- Live Traffic Stream Visualizer -->
+    <div class="stream-card">
+      <div class="stream-header">
+        <div class="stream-title">
+          <span>⚡ Live Traffic Stream (Zero-Downtime Proof)</span>
+        </div>
+        <div class="stream-controls">
+          <button id="streamToggleBtn" class="primary" onclick="toggleStream()">⏸ Pause Stream</button>
+          <button onclick="sendSingleRequest()">⚡ Ping Once</button>
+          <button class="danger" onclick="triggerSimulatedFailure()">⚠️ Trigger 500 Error</button>
+        </div>
+      </div>
+      <div class="terminal-box" id="terminalLog">
+        <div class="log-line">
+          <span class="log-time">[System]</span>
+          <span class="badge-ok">READY</span>
+          <span>Traffic stream initialized. Watch this box live during deployments!</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features & Architecture info -->
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h3>🔄 Blue/Green Switching</h3>
+        <p>Traffic is switched instantly via Kubernetes Service selector patches with 0s downtime.</p>
+      </div>
+      <div class="feature-card">
+        <h3>🐤 Canary Error Gating</h3>
+        <p>Prometheus queries check error rate at 5%, 25%, 100% weights before continuing rollout.</p>
+      </div>
+      <div class="feature-card">
+        <h3>🛡️ Automated Rollback</h3>
+        <p>Any threshold failure immediately initiates a rollback to the prior verified deployment.</p>
+      </div>
+    </div>
+
+    <!-- Action Links -->
+    <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+      <button onclick="window.open('/health', '_blank')">🔍 /health Endpoint</button>
+      <button onclick="window.open('/ready', '_blank')">🔍 /ready Endpoint</button>
+      <button onclick="window.open('/metrics', '_blank')">📊 /metrics Endpoint</button>
+    </div>
+
+    <footer>
+      Zero-Downtime Deployment Engine • Kubernetes Cloud Infrastructure
+    </footer>
+  </div>
+
+  <script>
+    let isStreaming = true;
+    let streamTimer = null;
+    let localReqCount = parseInt('{{REQUESTS_COUNT}}', 10) || 0;
+    let localErrCount = parseInt('{{ERRORS_COUNT}}', 10) || 0;
+
+    function addLog(status, isOk, version, latency, msg) {
+      const logBox = document.getElementById('terminalLog');
+      const timeStr = new Date().toLocaleTimeString();
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      
+      const badgeClass = isOk ? 'badge-ok' : 'badge-err';
+      line.innerHTML = `
+        <span class="log-time">${timeStr}</span>
+        <span class="${badgeClass}">${status}</span>
+        <span>Version: <strong>${version}</strong> (${latency}ms) — ${msg}</span>
+      `;
+      
+      logBox.insertBefore(line, logBox.firstChild);
+      
+      // Limit to 40 items in DOM
+      while (logBox.children.length > 40) {
+        logBox.removeChild(logBox.lastChild);
+      }
+    }
+
+    async function pingEndpoint() {
+      const startTime = performance.now();
+      try {
+        const res = await fetch('/api/status', { headers: { 'Accept': 'application/json' } });
+        const latency = Math.round(performance.now() - startTime);
+        if (res.ok) {
+          const data = await res.json();
+          localReqCount++;
+          document.getElementById('reqCounter').textContent = localReqCount;
+          addLog(`HTTP 200`, true, data.version || 'unknown', latency, 'Active live traffic serving OK');
+          
+          // Check if version dynamically changed in background
+          if (data.version && data.version !== '{{VERSION}}') {
+            document.getElementById('versionBadge').innerHTML = `<span>●</span><span>Version: ${data.version} (Switched!)</span>`;
+          }
+        } else {
+          localErrCount++;
+          document.getElementById('errorCounter').textContent = localErrCount;
+          addLog(`HTTP ${res.status}`, false, 'error', latency, 'Non-200 response received');
+        }
+      } catch (err) {
+        const latency = Math.round(performance.now() - startTime);
+        localErrCount++;
+        document.getElementById('errorCounter').textContent = localErrCount;
+        addLog('FAIL', false, 'network', latency, 'Connection dropped or refused!');
+      }
+    }
+
+    function toggleStream() {
+      const btn = document.getElementById('streamToggleBtn');
+      if (isStreaming) {
+        clearInterval(streamTimer);
+        isStreaming = false;
+        btn.textContent = '▶ Resume Stream';
+        btn.classList.remove('primary');
+      } else {
+        isStreaming = true;
+        btn.textContent = '⏸ Pause Stream';
+        btn.classList.add('primary');
+        startStream();
+      }
+    }
+
+    function startStream() {
+      clearInterval(streamTimer);
+      streamTimer = setInterval(pingEndpoint, 1000);
+    }
+
+    function sendSingleRequest() {
+      pingEndpoint();
+    }
+
+    async function triggerSimulatedFailure() {
+      try {
+        const res = await fetch('/fail');
+        localErrCount++;
+        document.getElementById('errorCounter').textContent = localErrCount;
+        addLog(`HTTP 500`, false, '{{VERSION}}', 10, 'Intentional 500 error triggered for canary gate testing');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Initialize stream on load
+    startStream();
+  </script>
+</body>
+</html>

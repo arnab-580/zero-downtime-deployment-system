@@ -1,6 +1,13 @@
 apiVersion: v1
 kind: Service
-metadata: { name: active, namespace: deployment-engine }
+metadata:
+  name: active
+  namespace: deployment-engine
 spec:
-  selector: { app: deployment-engine, color: blue }
-  ports: [{ port: 80, targetPort: 8080 }]
+  selector:
+    app: deployment-engine
+    color: green
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

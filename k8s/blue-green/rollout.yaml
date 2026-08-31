@@ -1,33 +1,93 @@
 apiVersion: apps/v1
 kind: Deployment
-metadata: { name: blue, namespace: deployment-engine }
+metadata:
+  name: blue
+  namespace: deployment-engine
+  labels:
+    app: deployment-engine
+    color: blue
 spec:
   replicas: 3
-  selector: { matchLabels: { app: deployment-engine, color: blue } }
+  selector:
+    matchLabels:
+      app: deployment-engine
+      color: blue
   template:
-    metadata: { labels: { app: deployment-engine, color: blue } }
+    metadata:
+      labels:
+        app: deployment-engine
+        color: blue
     spec:
       containers:
-        - name: app
+        - name: website
           image: zero-downtime:v1
-          ports: [{ containerPort: 8080 }]
-          env: [{ name: APP_VERSION, value: v1 }]
-          readinessProbe: { httpGet: { path: /ready, port: 8080 }, periodSeconds: 5 }
-          livenessProbe: { httpGet: { path: /health, port: 8080 }, periodSeconds: 10 }
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "200m"
+              memory: "64Mi"
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 80
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata: { name: green, namespace: deployment-engine }
+metadata:
+  name: green
+  namespace: deployment-engine
+  labels:
+    app: deployment-engine
+    color: green
 spec:
   replicas: 3
-  selector: { matchLabels: { app: deployment-engine, color: green } }
+  selector:
+    matchLabels:
+      app: deployment-engine
+      color: green
   template:
-    metadata: { labels: { app: deployment-engine, color: green } }
+    metadata:
+      labels:
+        app: deployment-engine
+        color: green
     spec:
       containers:
-        - name: app
+        - name: website
           image: zero-downtime:v2
-          ports: [{ containerPort: 8080 }]
-          env: [{ name: APP_VERSION, value: v2 }]
-          readinessProbe: { httpGet: { path: /ready, port: 8080 }, periodSeconds: 5 }
-          livenessProbe: { httpGet: { path: /health, port: 8080 }, periodSeconds: 10 }
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "200m"
+              memory: "64Mi"
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 80
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10

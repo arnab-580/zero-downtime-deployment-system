@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Production App - Version 1.0 (Green)</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+      <div class="logo">
+        <div class="status-dot"></div>
+        <span>Cloud Enterprise Platform</span>
+      </div>
+      <div class="version-pill">
+        <span>●</span>
+        <span>Version 1.0 (Green Release)</span>
+      </div>
+    </nav>
+
+    <!-- Hero Card -->
+    <section class="hero-card">
+      <h1>Production Platform v1.0</h1>
+      <p>
+        Currently running stable production version 1.0. All incoming user traffic is routed to this high-availability NGINX web tier.
+      </p>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🚀</div>
+        <div class="feature-title">High Availability Cluster</div>
+        <div class="feature-desc">Active pod replication running on Kubernetes with zero single point of failure.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-title">Automated Health Probes</div>
+        <div class="feature-desc">Built-in Liveness and Readiness probes actively verifying service uptime.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <div class="feature-title">Multi-Node Redundancy</div>
+        <div class="feature-desc">Load balanced traffic distribution managed by NGINX Ingress Controller.</div>
+      </div>
+    </section>
+
+    <!-- Live Traffic Stream (Visual Zero-Downtime Proof) -->
+    <section class="stream-box">
+      <div class="stream-top">
+        <div class="stream-title">
+          <span>⚡ Live Traffic Stream (Zero-Downtime Monitor)</span>
+        </div>
+        <div class="stream-controls">
+          <button id="streamToggle" class="primary" onclick="toggleStream()">⏸ Pause Traffic</button>
+          <button onclick="pingOnce()">⚡ Send 1 Request</button>
+        </div>
+      </div>
+      <div class="terminal" id="terminal">
+        <div class="log-entry">
+          <span class="log-time">[Init]</span>
+          <span class="badge-200">200 OK</span>
+          <span>Version: <strong>v1.0 (Green)</strong> | Traffic stream initialized</span>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Powered by NGINX & Kubernetes • Zero-Downtime Deployment Engine
+    </footer>
+  </div>
+
+  <script>
+    let isRunning = true;
+    let timer = null;
+
+    function addLog(status, latency) {
+      const term = document.getElementById('terminal');
+      const time = new Date().toLocaleTimeString();
+      const line = document.createElement('div');
+      line.className = 'log-entry';
+      line.innerHTML = `
+        <span class="log-time">${time}</span>
+        <span class="badge-200">${status}</span>
+        <span>Version: <strong style="color:#10b981;">v1.0 (Green)</strong> (${latency}ms) — Serving live request</span>
+      `;
+      term.insertBefore(line, term.firstChild);
+      while (term.children.length > 30) term.removeChild(term.lastChild);
+    }
+
+    async function ping() {
+      const start = performance.now();
+      try {
+        const res = await fetch('/health');
+        const latency = Math.round(performance.now() - start);
+        if (res.ok) addLog('200 OK', latency);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function toggleStream() {
+      const btn = document.getElementById('streamToggle');
+      if (isRunning) {
+        clearInterval(timer);
+        isRunning = false;
+        btn.textContent = '▶ Resume Traffic';
+        btn.classList.remove('primary');
+      } else {
+        isRunning = true;
+        btn.textContent = '⏸ Pause Traffic';
+        btn.classList.add('primary');
+        start();
+      }
+    }
+
+    function pingOnce() { ping(); }
+    function start() { clearInterval(timer); timer = setInterval(ping, 1000); }
+    start();
+  </script>
+</body>
+</html>

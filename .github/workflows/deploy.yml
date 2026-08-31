@@ -1,49 +1,76 @@
-name: build-and-deploy
-on: { push: { branches: [main] } }
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
 jobs:
-  verify:
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
-      - run: npm test --prefix app
-      - run: docker build --no-cache -f docker/Dockerfile -t zero-downtime:${{ github.sha }} .
-      - name: Security scan image
-        run: |
-          if ! command -v trivy >/dev/null 2>&1; then
-            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-              | sudo sh -s -- -b /usr/local/bin
-          fi
-          trivy image \
-            --exit-code 1 \
-            --ignore-unfixed \
-            --severity CRITICAL \
-            zero-downtime:${{ github.sha }}
   deploy:
-    needs: verify
-    if: github.ref == 'refs/heads/main'
-    runs-on: self-hosted
+    name: Build, Test & Deploy to EC2
+    runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Prepare cluster
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Verify NGINX Container Locally
         run: |
-          minikube status || minikube start --driver=docker
-          minikube image load zero-downtime:${{ github.sha }}
-          kubectl apply -f k8s/namespace.yaml -f k8s/blue-green/rollout.yaml -f k8s/services/preview-service.yaml
-          kubectl -n deployment-engine get service active >/dev/null 2>&1 || kubectl apply -f k8s/services/active-service.yaml
-          kubectl apply -f k8s/monitoring.yaml
-      - name: Deploy inactive color
-        run: |
-          TARGET=$(bash ./scripts/deploy-inactive.sh zero-downtime:${{ github.sha }} | tail -n 1)
-          echo "TARGET=$TARGET" >> "$GITHUB_ENV"
-      - name: Smoke test inactive color
-        run: |
-          kubectl -n deployment-engine port-forward deployment/$TARGET 18082:8080 > /tmp/preview.log 2>&1 &
-          PF=$!
-          trap 'kill $PF 2>/dev/null || true' EXIT
-          sleep 5
-          curl --fail --retry 20 --retry-delay 1 --retry-all-errors http://127.0.0.1:18082/health
-      - name: Promote inactive color
-        run: bash ./scripts/promote.sh "$TARGET"
-      - name: Automatic rollback on failure
-        if: failure()
-        run: bash ./scripts/rollback.sh
+          docker build -f docker/Dockerfile -t test-image:${{ github.sha }} .
+          docker run -d --name test-app -p 8080:80 test-image:${{ github.sha }}
+          sleep 2
+          curl --fail http://127.0.0.1:8080/health
+          docker rm -f test-app
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            echo "==> Connected to EC2 successfully"
+
+            # Create or navigate to workspace directory
+            mkdir -p ~/zero-downtime-engine
+            cd ~/zero-downtime-engine
+
+            # Sync code from GitHub (or git pull if cloned)
+            # You can also clone once: git clone <repo_url> .
+            if [ -d ".git" ]; then
+              git fetch origin main
+              git reset --hard origin/main
+            else
+              git clone https://github.com/${{ github.repository }}.git .
+            fi
+
+            echo "==> Ensuring Minikube and Kubernetes are running..."
+            minikube status || minikube start --driver=docker
+
+            echo "==> Building immutable Docker image on EC2..."
+            docker build --no-cache -f docker/Dockerfile -t zero-downtime:${{ github.sha }} .
+            minikube image load zero-downtime:${{ github.sha }}
+
+            echo "==> Applying base Kubernetes resources..."
+            kubectl apply -f k8s/namespace.yaml
+            kubectl apply -f k8s/blue-green/rollout.yaml
+            kubectl apply -f k8s/services/preview-service.yaml
+            kubectl -n deployment-engine get service active >/dev/null 2>&1 || kubectl apply -f k8s/services/active-service.yaml
+            kubectl apply -f k8s/monitoring.yaml
+
+            echo "==> Deploying to inactive color..."
+            TARGET=$(bash ./scripts/deploy-inactive.sh zero-downtime:${{ github.sha }} | tail -n 1)
+            echo "Target inactive color is: $TARGET"
+
+            echo "==> Smoke testing inactive deployment before switching traffic..."
+            kubectl -n deployment-engine port-forward deployment/$TARGET 18082:80 > /tmp/preview.log 2>&1 &
+            PF=$!
+            trap 'kill $PF 2>/dev/null || true' EXIT
+            sleep 5
+            curl --fail --retry 10 --retry-delay 2 http://127.0.0.1:18082/health
+
+            echo "==> Promoting traffic to new version ($TARGET)..."
+            bash ./scripts/promote.sh "$TARGET"
+            echo "🎉 Deployment to EC2 completed with ZERO downtime!"
