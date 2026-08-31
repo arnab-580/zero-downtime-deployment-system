@@ -85,15 +85,19 @@ jobs:
             echo "==> Ensuring automatic browser access (Live Site, Control Panel & Grafana)..."
             # 1. Expose Live Active Website on port 8080 to all interfaces (0.0.0.0)
             pkill -f "port-forward --address 0.0.0.0 svc/active" || true
-            nohup kubectl -n deployment-engine port-forward --address 0.0.0.0 svc/active 8080:80 > /tmp/active-forward.log 2>&1 &
+            nohup kubectl -n deployment-engine port-forward --address 0.0.0.0 svc/active 8080:80 </dev/null >/tmp/active-forward.log 2>&1 &
+            disown
 
             # 2. Expose Deployment Control Panel on port 8081
             pkill -f "control-panel/server.js" || true
-            nohup node control-panel/server.js > /tmp/control-panel.log 2>&1 &
+            nohup node control-panel/server.js </dev/null >/tmp/control-panel.log 2>&1 &
+            disown
 
             # 3. Expose Grafana Dashboard on port 3000
             pkill -f "port-forward --address 0.0.0.0 svc/grafana" || true
-            nohup kubectl -n deployment-engine port-forward --address 0.0.0.0 svc/grafana 3000:3000 > /tmp/grafana-forward.log 2>&1 &
+            nohup kubectl -n deployment-engine port-forward --address 0.0.0.0 svc/grafana 3000:3000 </dev/null >/tmp/grafana-forward.log 2>&1 &
+            disown
 
             echo "🎉 Deployment to EC2 completed with ZERO downtime! Website is live on port 8080."
+            exit 0
             EOF
