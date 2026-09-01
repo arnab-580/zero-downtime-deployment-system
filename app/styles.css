@@ -2,9 +2,9 @@
   --bg-color: #0b0f19;
   --card-bg: #131b2e;
   --card-border: #1e293b;
-  --primary-color: #f59e0b; /* Amber Gold for v0.1 */
-  --primary-glow: rgba(245, 158, 11, 0.35);
-  --primary-badge-bg: rgba(245, 158, 11, 0.15);
+  --primary-color: #3b82f6; /* Electric Royal Blue for v0.2 */
+  --primary-glow: rgba(59, 130, 246, 0.35);
+  --primary-badge-bg: rgba(59, 130, 246, 0.15);
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
 }
