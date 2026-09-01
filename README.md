@@ -27,7 +27,7 @@ docker build -f docker/Dockerfile -t zero-downtime:v1 .
 ```bash
 docker run --rm -p 8080:80 zero-downtime:v1
 ```
-Open `http://localhost:8080` to see the **Green v1.0** website with live traffic monitoring.
+Open `http://localhost:8080` to see the **Green v1.0** website with live traffic monitoring. Keep port 8080 forwarded to the NGINX Ingress controller so later Service and canary changes are followed without restarting the forwarder.
 
 ### 3. Deploy to Kubernetes:
 ```bash

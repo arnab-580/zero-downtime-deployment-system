@@ -28,7 +28,7 @@ Currently, [`app/index.html`](file:///c:/Users/arnab/Downloads/zero-downtime-dep
 
 4. **Port-Forward to View Live Site:**
    ```bash
-   kubectl -n deployment-engine port-forward svc/active 8080:80
+   kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 8080:80
    ```
    Open `http://localhost:8080`. You will see the **Green v1.0** site streaming live traffic.
 
