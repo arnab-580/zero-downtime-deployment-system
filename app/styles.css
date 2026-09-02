@@ -2,9 +2,9 @@
   --bg-color: #0b0f19;
   --card-bg: #131b2e;
   --card-border: #1e293b;
-  --primary-color: #06b6d4; /* Electric Cyan for v0.8 */
-  --primary-glow: rgba(6, 182, 212, 0.35);
-  --primary-badge-bg: rgba(6, 182, 212, 0.15);
+  --primary-color: #d946ef; /* Neon Fuchsia for v0.9 */
+  --primary-glow: rgba(217, 70, 239, 0.35);
+  --primary-badge-bg: rgba(217, 70, 239, 0.15);
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
 }
