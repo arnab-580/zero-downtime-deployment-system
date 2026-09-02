@@ -93,7 +93,9 @@ const page = `<!doctype html>
       <div class="btn-grid">
         <button id="btnAutoCanary" class="orange" onclick="runAutoCanary()">🚀 Auto Cutover (10% → 100%)</button>
         <button id="btnCanary10" onclick="applyCanary(10)">10% Canary</button>
-        <button id="btnCanary25" onclick="applyCanary(25)">25% Canary</button>
+        <button id="btnCanary20" onclick="applyCanary(20)">20% Canary</button>
+        <button id="btnCanary30" onclick="applyCanary(30)">30% Canary</button>
+        <button id="btnCanary40" onclick="applyCanary(40)">40% Canary</button>
         <button id="btnCanary50" onclick="applyCanary(50)">50% Canary</button>
         <button id="btnCanary100" class="blue" onclick="applyCanary(100)">100% Full Cutover</button>
         <button id="btnRollback" class="green" onclick="rollbackToBaseline()">↩ Rollback / Reset (0%)</button>
@@ -185,8 +187,14 @@ const page = `<!doctype html>
         const b10 = document.getElementById('btnCanary10');
         if (b10) b10.textContent = '10% ' + targetUpper;
 
-        const b25 = document.getElementById('btnCanary25');
-        if (b25) b25.textContent = '25% ' + targetUpper;
+        const b20 = document.getElementById('btnCanary20');
+        if (b20) b20.textContent = '20% ' + targetUpper;
+
+        const b30 = document.getElementById('btnCanary30');
+        if (b30) b30.textContent = '30% ' + targetUpper;
+
+        const b40 = document.getElementById('btnCanary40');
+        if (b40) b40.textContent = '40% ' + targetUpper;
 
         const b50 = document.getElementById('btnCanary50');
         if (b50) b50.textContent = '50% ' + targetUpper;
@@ -239,20 +247,15 @@ const page = `<!doctype html>
 
     async function runAutoCanary() {
       const target = currentTargetColor.toUpperCase();
-      log('🚀 Starting Automated Progressive Canary Cutover to ' + target + '...');
-      const steps = [
-        { w: 10, label: 'Stage 1/4: 10% ' + target + ' (Initial Smoke)' },
-        { w: 25, label: 'Stage 2/4: 25% ' + target + ' (Traffic Ramp)' },
-        { w: 50, label: 'Stage 3/4: 50% ' + target + ' (Balanced Split)' },
-        { w: 100, label: 'Stage 4/4: 100% ' + target + ' Cutover Complete!' }
-      ];
+      log('🚀 Starting Automated Progressive Canary Cutover to ' + target + ' (10% increments)...');
 
-      for (const step of steps) {
-        document.getElementById('stageLabel').textContent = step.label;
-        await applyCanary(step.w);
-        log('Verifying SLA at ' + step.w + '% split towards ' + target + ' (holding 3s)...');
-        await new Promise(r => setTimeout(r, 3000));
+      for (let w = 10; w <= 100; w += 10) {
+        document.getElementById('stageLabel').textContent = 'Canary Stage: ' + w + '% ' + target;
+        await applyCanary(w);
+        log('Verifying SLA at ' + w + '% split towards ' + target + ' (holding 2s)...');
+        await new Promise(r => setTimeout(r, 2000));
       }
+
       document.getElementById('stageLabel').textContent = 'Live Traffic Split';
       log('🎉 Automated Canary cutover finished with 100% SLA to ' + target + '!');
     }
