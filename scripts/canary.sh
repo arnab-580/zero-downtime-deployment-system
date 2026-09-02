@@ -11,15 +11,15 @@ fi
 
 if [ "$WEIGHT" -eq 0 ]; then
   # 100% on other color
-  kubectl -n deployment-engine scale deployment "$OTHER_COLOR" --replicas=2
-  kubectl -n deployment-engine scale deployment "$TARGET_COLOR" --replicas=2
+  kubectl -n deployment-engine scale deployment "$OTHER_COLOR" --replicas=3
+  kubectl -n deployment-engine scale deployment "$TARGET_COLOR" --replicas=3
   kubectl -n deployment-engine patch service active --type merge -p "{\"spec\":{\"selector\":{\"app\":\"deployment-engine\",\"color\":\"$OTHER_COLOR\"}}}"
   echo "Traffic 100% routed to $OTHER_COLOR (0% Canary)"
 
 elif [ "$WEIGHT" -ge 100 ]; then
   # 100% on target color
-  kubectl -n deployment-engine scale deployment "$TARGET_COLOR" --replicas=2
-  kubectl -n deployment-engine scale deployment "$OTHER_COLOR" --replicas=2
+  kubectl -n deployment-engine scale deployment "$TARGET_COLOR" --replicas=3
+  kubectl -n deployment-engine scale deployment "$OTHER_COLOR" --replicas=3
   kubectl -n deployment-engine patch service active --type merge -p "{\"spec\":{\"selector\":{\"app\":\"deployment-engine\",\"color\":\"$TARGET_COLOR\"}}}"
   echo "Traffic 100% promoted to $TARGET_COLOR"
 
@@ -38,9 +38,9 @@ elif [ "$WEIGHT" -le 35 ]; then
   echo "Canary split active: 25% $TARGET_COLOR / 75% $OTHER_COLOR"
 
 else
-  # 50% Canary: 2 other, 2 target
-  kubectl -n deployment-engine scale deployment "$OTHER_COLOR" --replicas=2
-  kubectl -n deployment-engine scale deployment "$TARGET_COLOR" --replicas=2
+  # 50% Canary: 3 other, 3 target
+  kubectl -n deployment-engine scale deployment "$OTHER_COLOR" --replicas=3
+  kubectl -n deployment-engine scale deployment "$TARGET_COLOR" --replicas=3
   kubectl -n deployment-engine patch service active --type merge -p '{"spec":{"selector":{"app":"deployment-engine","color":null}}}'
   echo "Canary split active: 50% $TARGET_COLOR / 50% $OTHER_COLOR"
 fi

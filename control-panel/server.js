@@ -91,8 +91,13 @@ const page = `<!doctype html>
       </div>
 
       <div class="btn-grid">
-        <button class="green" onclick="rollbackToGreen()">↩ Rollback 100% → GREEN</button>
-        <button class="rose" onclick="trigger500Rollback()">💥 Trigger 500 Error (Auto-Rollback)</button>
+        <button id="btnAutoCanary" class="orange" onclick="runAutoCanary()">🚀 Auto Cutover (10% → 100%)</button>
+        <button id="btnCanary10" onclick="applyCanary(10)">10% Canary</button>
+        <button id="btnCanary25" onclick="applyCanary(25)">25% Canary</button>
+        <button id="btnCanary50" onclick="applyCanary(50)">50% Canary</button>
+        <button id="btnCanary100" class="blue" onclick="applyCanary(100)">100% Full Cutover</button>
+        <button id="btnRollback" class="green" onclick="rollbackToBaseline()">↩ Rollback / Reset (0%)</button>
+        <button class="rose" onclick="trigger500Rollback()">💥 Trigger 500 (Rollback)</button>
       </div>
     </div>
 
@@ -140,18 +145,26 @@ const page = `<!doctype html>
       document.getElementById('canaryWeightText').textContent = 'Blue: ' + blueWeight + '% | Green: ' + greenWeight + '%';
     }
 
+    let currentActiveColor = 'green';
+    let currentTargetColor = 'blue';
+
     async function refreshStatus() {
       try {
         const res = await fetch('/status');
-        const color = await res.text();
+        const color = (await res.text()).trim();
         const badge = document.getElementById('statusBadge');
         badge.textContent = 'Active Service: ' + color.toUpperCase();
+        
         if (color.includes('green')) {
+          currentActiveColor = 'green';
+          currentTargetColor = 'blue';
           badge.style.color = '#10b981';
           badge.style.borderColor = '#10b981';
           badge.style.background = 'rgba(16, 185, 129, 0.15)';
           updateTrafficBar(0);
         } else if (color.includes('blue')) {
+          currentActiveColor = 'blue';
+          currentTargetColor = 'green';
           badge.style.color = '#3b82f6';
           badge.style.borderColor = '#3b82f6';
           badge.style.background = 'rgba(59, 130, 246, 0.15)';
@@ -160,6 +173,34 @@ const page = `<!doctype html>
           badge.style.color = '#f97316';
           badge.style.borderColor = '#f97316';
           badge.style.background = 'rgba(249, 115, 22, 0.15)';
+        }
+
+        // Dynamically update labels and button themes based on Active -> Target
+        const targetUpper = currentTargetColor.toUpperCase();
+        const activeUpper = currentActiveColor.toUpperCase();
+
+        const stage = document.getElementById('stageLabel');
+        if (stage) stage.textContent = 'Active: ' + activeUpper + ' → Canary Target: ' + targetUpper;
+
+        const b10 = document.getElementById('btnCanary10');
+        if (b10) b10.textContent = '10% ' + targetUpper;
+
+        const b25 = document.getElementById('btnCanary25');
+        if (b25) b25.textContent = '25% ' + targetUpper;
+
+        const b50 = document.getElementById('btnCanary50');
+        if (b50) b50.textContent = '50% ' + targetUpper;
+
+        const b100 = document.getElementById('btnCanary100');
+        if (b100) {
+          b100.textContent = '100% ' + targetUpper;
+          b100.className = currentTargetColor;
+        }
+
+        const bRoll = document.getElementById('btnRollback');
+        if (bRoll) {
+          bRoll.textContent = '↩ 100% ' + activeUpper + ' (Reset)';
+          bRoll.className = currentActiveColor;
         }
       } catch (e) {
         console.error(e);
@@ -175,27 +216,55 @@ const page = `<!doctype html>
       refreshStatus();
     }
 
-    async function rollbackToGreen() {
-      log('↩ Routing 100% traffic to GREEN (holding older stable version)...');
-      try {
-        const res = await fetch('/rollback', { method: 'POST' });
-        const text = await res.text();
-        log(text);
-        updateTrafficBar(0);
-        refreshStatus();
-      } catch (e) {
-        log('Rollback error: ' + e.message);
+    async function applyCanary(weight) {
+      const target = currentTargetColor;
+      log('Shifting traffic split: ' + weight + '% towards ' + target.toUpperCase() + '...');
+      const res = await fetch('/canary/' + target + '/' + weight, { method: 'POST' });
+      const text = await res.text();
+      log(text);
+      const bluePercent = target === 'blue' ? weight : (100 - weight);
+      updateTrafficBar(bluePercent);
+      refreshStatus();
+    }
+
+    async function rollbackToBaseline() {
+      const active = currentActiveColor;
+      log('↩ Resetting / Rolling back 100% traffic to ' + active.toUpperCase() + '...');
+      const res = await fetch('/switch/' + active, { method: 'POST' });
+      const text = await res.text();
+      log(text);
+      updateTrafficBar(active === 'blue' ? 100 : 0);
+      refreshStatus();
+    }
+
+    async function runAutoCanary() {
+      const target = currentTargetColor.toUpperCase();
+      log('🚀 Starting Automated Progressive Canary Cutover to ' + target + '...');
+      const steps = [
+        { w: 10, label: 'Stage 1/4: 10% ' + target + ' (Initial Smoke)' },
+        { w: 25, label: 'Stage 2/4: 25% ' + target + ' (Traffic Ramp)' },
+        { w: 50, label: 'Stage 3/4: 50% ' + target + ' (Balanced Split)' },
+        { w: 100, label: 'Stage 4/4: 100% ' + target + ' Cutover Complete!' }
+      ];
+
+      for (const step of steps) {
+        document.getElementById('stageLabel').textContent = step.label;
+        await applyCanary(step.w);
+        log('Verifying SLA at ' + step.w + '% split towards ' + target + ' (holding 3s)...');
+        await new Promise(r => setTimeout(r, 3000));
       }
+      document.getElementById('stageLabel').textContent = 'Live Traffic Split';
+      log('🎉 Automated Canary cutover finished with 100% SLA to ' + target + '!');
     }
 
     async function trigger500Rollback() {
       log('🚨 [HTTP 500 SIMULATION] Error rate on Canary pods exceeded 5% SLA threshold!');
-      log('⚠️ [AUTO ROLLBACK] Quality Gate SLA failed. Triggering rollback to GREEN (preserving pods)...');
+      log('⚠️ [AUTO ROLLBACK] Quality Gate SLA failed. Triggering rollback to ' + currentActiveColor.toUpperCase() + ' (preserving pods)...');
       try {
         const res = await fetch('/trigger-500', { method: 'POST' });
         const text = await res.text();
         log(text);
-        updateTrafficBar(0);
+        updateTrafficBar(currentActiveColor === 'blue' ? 100 : 0);
         refreshStatus();
       } catch (e) {
         log('Rollback error: ' + e.message);
