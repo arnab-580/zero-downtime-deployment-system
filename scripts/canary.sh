@@ -45,8 +45,8 @@ else
   echo "Canary split active: 50% $TARGET_COLOR / 50% $OTHER_COLOR"
 fi
 
-# Refresh port 8080 forwarder
-pkill -9 -f "svc/active 8080" 2>/dev/null || true
-sleep 1
-setsid nohup kubectl -n deployment-engine port-forward --address 0.0.0.0 svc/active 8080:80 >/tmp/active-forward.log 2>&1 </dev/null &
-disown -a
+# Ensure port forwarder is running without killing active connections
+if ! pgrep -f "svc/active 8080" >/dev/null 2>&1; then
+  setsid nohup kubectl -n deployment-engine port-forward --address 0.0.0.0 svc/active 8080:80 >/tmp/active-forward.log 2>&1 </dev/null &
+  disown -a
+fi

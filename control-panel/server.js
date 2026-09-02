@@ -91,11 +91,8 @@ const page = `<!doctype html>
       </div>
 
       <div class="btn-grid">
-        <button class="orange" onclick="runAutoCanary()">🚀 Auto Progressive Cutover (10% → 100%)</button>
-        <button onclick="setCanary('blue', 10)">10% Canary</button>
-        <button onclick="setCanary('blue', 25)">25% Canary</button>
-        <button onclick="setCanary('blue', 50)">50% Canary</button>
-        <button class="blue" onclick="setCanary('blue', 100)">100% Full Cutover</button>
+        <button class="green" onclick="rollbackToGreen()">↩ Rollback 100% → GREEN</button>
+        <button class="rose" onclick="trigger500Rollback()">💥 Trigger 500 Error (Auto-Rollback)</button>
       </div>
     </div>
 
@@ -178,32 +175,31 @@ const page = `<!doctype html>
       refreshStatus();
     }
 
-    async function setCanary(color, weight) {
-      log('Shifting traffic split: ' + weight + '% ' + color.toUpperCase() + '...');
-      const res = await fetch('/canary/' + color + '/' + weight, { method: 'POST' });
-      const text = await res.text();
-      log(text);
-      updateTrafficBar(color === 'blue' ? weight : (100 - weight));
-      refreshStatus();
+    async function rollbackToGreen() {
+      log('↩ Routing 100% traffic to GREEN (holding older stable version)...');
+      try {
+        const res = await fetch('/rollback', { method: 'POST' });
+        const text = await res.text();
+        log(text);
+        updateTrafficBar(0);
+        refreshStatus();
+      } catch (e) {
+        log('Rollback error: ' + e.message);
+      }
     }
 
-    async function runAutoCanary() {
-      log('🚀 Starting Automated Progressive Canary Cutover...');
-      const steps = [
-        { w: 10, label: 'Stage 1/4: 10% Canary (Initial Smoke)' },
-        { w: 25, label: 'Stage 2/4: 25% Canary (Traffic Ramp)' },
-        { w: 50, label: 'Stage 3/4: 50% Canary (Balanced Split)' },
-        { w: 100, label: 'Stage 4/4: 100% Full Cutover Complete!' }
-      ];
-
-      for (const step of steps) {
-        document.getElementById('stageLabel').textContent = step.label;
-        await setCanary('blue', step.w);
-        log('Verifying SLA at ' + step.w + '% split (holding 4s)...');
-        await new Promise(r => setTimeout(r, 4000));
+    async function trigger500Rollback() {
+      log('🚨 [HTTP 500 SIMULATION] Error rate on Canary pods exceeded 5% SLA threshold!');
+      log('⚠️ [AUTO ROLLBACK] Quality Gate SLA failed. Triggering rollback to GREEN (preserving pods)...');
+      try {
+        const res = await fetch('/trigger-500', { method: 'POST' });
+        const text = await res.text();
+        log(text);
+        updateTrafficBar(0);
+        refreshStatus();
+      } catch (e) {
+        log('Rollback error: ' + e.message);
       }
-      document.getElementById('stageLabel').textContent = 'Live Traffic Split';
-      log('🎉 Automated Canary cutover finished with 100% SLA and 0 dropped connections.');
     }
 
     async function toggleLoadTest() {
@@ -286,6 +282,39 @@ http.createServer((req, res) => {
       }
       const msg = stdout ? stdout.trim() : `Traffic routed to ${color.toUpperCase()}`;
       broadcast(`🔄 [CUTOVER] ${msg}`);
+      res.writeHead(200);
+      res.end(msg);
+    });
+    return;
+  }
+
+  // Trigger 500 error & auto-rollback to green
+  if (req.url === '/trigger-500' || req.url.startsWith('/trigger-500')) {
+    broadcast('🚨 [ALERT] Simulated HTTP 500 Internal Server Error spike on Canary pods! SLA breached (>5% error rate).');
+    broadcast('⚠️ [AUTO ROLLBACK] Quality Gate failed. Executing rollback.sh to restore 100% traffic to GREEN (preserving pods)...');
+    execFile('bash', ['./scripts/rollback.sh'], (err, stdout, stderr) => {
+      if (err) {
+        res.writeHead(500);
+        return res.end('Rollback failed: ' + (stderr || err.message));
+      }
+      const msg = stdout ? stdout.trim() : 'Rolled back 100% to GREEN';
+      broadcast(`✅ [ROLLBACK SUCCESS] ${msg}`);
+      res.writeHead(200);
+      res.end(msg);
+    });
+    return;
+  }
+
+  // Manual Rollback to green
+  if (req.url === '/rollback' || req.url.startsWith('/rollback')) {
+    broadcast('↩ [MANUAL ROLLBACK] Routing 100% traffic to GREEN (holding older version)...');
+    execFile('bash', ['./scripts/rollback.sh'], (err, stdout, stderr) => {
+      if (err) {
+        res.writeHead(500);
+        return res.end('Rollback failed: ' + (stderr || err.message));
+      }
+      const msg = stdout ? stdout.trim() : 'Rolled back 100% to GREEN';
+      broadcast(`✅ [ROLLBACK SUCCESS] ${msg}`);
       res.writeHead(200);
       res.end(msg);
     });
