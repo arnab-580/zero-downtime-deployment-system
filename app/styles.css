@@ -2,9 +2,9 @@
   --bg-color: #0b0f19;
   --card-bg: #131b2e;
   --card-border: #1e293b;
-  --primary-color: #a855f7; /* Electric Violet for v0.5 */
-  --primary-glow: rgba(168, 85, 247, 0.35);
-  --primary-badge-bg: rgba(168, 85, 247, 0.15);
+  --primary-color: #f59e0b; /* Amber Orange for v0.6 */
+  --primary-glow: rgba(245, 158, 11, 0.35);
+  --primary-badge-bg: rgba(245, 158, 11, 0.15);
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
 }
