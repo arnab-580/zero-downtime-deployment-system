@@ -55,8 +55,20 @@ jobs:
               git clone "$REPO_URL" .
             fi
 
-            echo "==> Ensuring Minikube and Kubernetes are running..."
-            minikube status || minikube start --driver=docker
+            echo "==> Ensuring Docker daemon is active..."
+            sudo systemctl start docker 2>/dev/null || true
+
+            echo "==> Checking if Minikube is started..."
+            if ! minikube status 2>&1 | grep -q "host: Running"; then
+              echo "==> Minikube is not started. Starting Minikube with driver: docker..."
+              minikube start --driver=docker
+            else
+              echo "==> Minikube is already started and running."
+            fi
+
+            # Ensure kubectl context and node are ready
+            minikube update-context
+            kubectl wait --for=condition=Ready node --all --timeout=60s 2>/dev/null || true
 
             echo "==> Building immutable Docker image on EC2..."
             docker build --no-cache -f docker/Dockerfile -t zero-downtime:${{ github.sha }} -t zero-downtime:latest -t zero-downtime:v1 .
