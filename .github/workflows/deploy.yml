@@ -24,10 +24,46 @@ jobs:
           curl --fail http://127.0.0.1:8080/health
           docker rm -f test-app
 
+      # 1. Configure AWS CLI (if AWS keys are set)
+      - name: Configure AWS Credentials
+        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
+
+      # 2. Check if EC2 is stopped; if so, start it and wait until running
+      - name: Check and Start EC2 Instance if stopped
+        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' && (secrets.AWS_INSTANCE_ID != '' || secrets.EC2_INSTANCE_ID != '') }}
+        id: ec2_lifecycle
+        run: |
+          INSTANCE_ID="${{ secrets.AWS_INSTANCE_ID || secrets.EC2_INSTANCE_ID }}"
+          echo "Target EC2 Instance ID: $INSTANCE_ID"
+
+          # Query instance state
+          STATE=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" --query 'Reservations[0].Instances[0].State.Name' --output text)
+          echo "Current EC2 State: $STATE"
+
+          if [ "$STATE" != "running" ]; then
+            echo "==> EC2 is $STATE. Starting instance..."
+            aws ec2 start-instances --instance-ids "$INSTANCE_ID"
+            echo "==> Waiting for EC2 instance to reach 'running' state..."
+            aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
+            echo "==> EC2 instance is now running! Waiting 25s for SSH daemon to initialize..."
+            sleep 25
+          fi
+
+          # Dynamically retrieve public IP (handles dynamic IPs gracefully without manual secret updates)
+          PUBLIC_IP=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+          echo "Resolved Public IP: $PUBLIC_IP"
+          echo "host=$PUBLIC_IP" >> $GITHUB_OUTPUT
+
+      # 3. Deploy to EC2 via SSH
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.EC2_HOST }}
+          host: ${{ steps.ec2_lifecycle.outputs.host || secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           command_timeout: 30m
@@ -104,6 +140,11 @@ jobs:
 
             echo "==> Ensuring automatic browser access..."
             bash ./scripts/expose-ports.sh
+
+            # Schedule auto-shutdown in 60 minutes to save AWS costs
+            echo "==> Scheduling automatic shutdown in 60 minutes to save AWS costs..."
+            sudo shutdown -c 2>/dev/null || true
+            sudo shutdown -h +60 "Auto-stopping EC2 after 1 hour of deployment" || true
 
             echo "🎉 Deployment to EC2 completed with ZERO downtime! Website is live on port 8080."
             EOF
