@@ -281,55 +281,6 @@ Conducted on AWS EC2 Ubuntu 24.04 LTS against a live Minikube cluster using `scr
 | **Post-Cutover Errors** | **0** | **0** | **0** |
 | **Failover Latency** | < 1 ms | Smooth ramp | < 15 ms |
 
----
-
-## 🚀 Setup & Installation
-
-### Local Prerequisites
-* [Docker Desktop](https://www.docker.com/) (or Docker Engine)
-* [Minikube](https://minikube.sigs.k8s.io/)
-* [Kubectl](https://kubernetes.io/docs/tasks/tools/)
-* Node.js v18+
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/<your-username>/zero-downtime-deployment-engine.git
-cd zero-downtime-deployment-engine
-```
-
-### 2. Start Minikube
-```bash
-minikube start --driver=docker
-kubectl config set-context --current --namespace=deployment-engine
-```
-
-### 3. Deploy Kubernetes Resources
-```bash
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/monitoring.yaml
-kubectl apply -f k8s/blue-green/rollout.yaml
-kubectl apply -f k8s/services/active-service.yaml
-kubectl apply -f k8s/services/preview-service.yaml
-```
-
-### 4. Launch the Control Panel
-```bash
-node control-panel/server.js
-```
-Open **`http://localhost:8081`** in your browser to access the live Control Panel.
-
-### 5. Configure GitHub Actions Secrets (for AWS EC2)
-In your GitHub repository $\rightarrow$ **Settings** $\rightarrow$ **Secrets and variables** $\rightarrow$ **Actions**, set:
-
-| Secret Name | Description | Example |
-|---|---|---|
-| `EC2_USER` | EC2 SSH username | `ubuntu` |
-| `EC2_SSH_KEY` | Private SSH key (`.pem`) content | `-----BEGIN RSA PRIVATE KEY-----...` |
-| `EC2_HOST` | Fallback Public IP (optional) | `13.235.77.90` |
-| `AWS_ACCESS_KEY_ID` | AWS IAM Access Key (for auto-start) | `AKIAIOSFODNN7EXAMPLE` |
-| `AWS_SECRET_ACCESS_KEY` | AWS IAM Secret Key | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
-| `AWS_REGION` | AWS Region of your EC2 instance | `ap-south-1` |
-| `AWS_INSTANCE_ID` | EC2 Instance ID | `i-0123456789abcdef0` |
 
 ---
 
