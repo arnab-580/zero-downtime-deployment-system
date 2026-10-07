@@ -281,9 +281,3 @@ Conducted on AWS EC2 Ubuntu 24.04 LTS against a live Minikube cluster using `scr
 | **Post-Cutover Errors** | **0** | **0** | **0** |
 | **Failover Latency** | < 1 ms | Smooth ramp | < 15 ms |
 
-
----
-
-## 📜 License
-
-Distributed under the **MIT License**. Free for commercial and open-source use.
