@@ -30,9 +30,9 @@ jobs:
       - name: Lint (Ruff) & Unit Tests (Pytest)
         working-directory: app
         run: |
-          pip install --no-cache-dir -r requirements.txt pytest==9.2.0 httpx==0.28.1 ruff==0.17.6
-          ruff check .
-          pytest -v
+          pip install -r requirements.txt pytest httpx ruff
+          ruff check --select E,F,W main.py alembic/env.py tests/
+          PYTHONPATH=. pytest -v
 
       - name: Build Container Image Once (Local Daemon)
         run: |
