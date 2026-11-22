@@ -8,15 +8,15 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Annotated
 
+import redis.asyncio as aioredis
 from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 from pydantic import BaseModel, Field
-import redis.asyncio as aioredis
 
 
 # --- Structured JSON Logging ---
@@ -48,7 +48,7 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CHAOS_ERROR_RATE = float(os.getenv("CHAOS_ERROR_RATE", "0"))
 CHAOS_LATENCY_MS = int(os.getenv("CHAOS_LATENCY_MS", "0"))
 
-# --- Prometheus Metrics (Matches k8s/platform/analysis-template.yaml!) ---
+# --- Prometheus Metrics (Matches k8s/platform/analysis-template.yaml) ---
 HTTP_REQUESTS_TOTAL = Counter(
     "http_requests_total",
     "Total HTTP requests handled",
@@ -72,8 +72,8 @@ ORDERS_CREATED_TOTAL = Counter(
     ["app_version"],
 )
 
-db_pool: Optional[AsyncConnectionPool] = None
-redis_client: Optional[aioredis.Redis] = None
+db_pool: AsyncConnectionPool | None = None
+redis_client: aioredis.Redis | None = None
 is_draining = False
 
 
@@ -120,7 +120,6 @@ async def observe_and_chaos(request: Request, call_next):
 
     start = time.perf_counter()
 
-    # Controlled canary chaos (never breaks probes/metrics so Prometheus catches it cleanly)
     if path.startswith("/api/"):
         if CHAOS_LATENCY_MS > 0:
             await asyncio.sleep(CHAOS_LATENCY_MS / 1000.0)
@@ -134,7 +133,7 @@ async def observe_and_chaos(request: Request, call_next):
             }
             HTTP_REQUESTS_TOTAL.labels(**labels).inc()
             HTTP_REQUEST_DURATION.labels(**labels).observe(elapsed)
-            logger.warning(f"injected canary fault on {path}")
+            logger.warning("injected canary fault on %s", path)
             return JSONResponse(
                 status_code=500,
                 content={"error": "simulated_canary_failure", "version": APP_VERSION, "pod": POD_NAME},
@@ -170,8 +169,8 @@ async def readyz():
             await conn.execute("SELECT 1")
         await redis_client.ping()
         return {"status": "ready", "version": APP_VERSION, "pod": POD_NAME}
-    except Exception as exc:
-        logger.error(f"readiness check failed: {exc}")
+    except Exception as exc:  # noqa: BLE001
+        logger.error("readiness check failed: %s", exc)
         return JSONResponse(status_code=503, content={"status": "not_ready"})
 
 
@@ -207,21 +206,19 @@ async def list_products():
         cached = await redis_client.get(cache_key)
         if cached:
             return {"source": "redis", "version": APP_VERSION, "pod": POD_NAME, "products": json.loads(cached)}
-    except Exception:
-        pass
+    except (aioredis.RedisError, json.JSONDecodeError) as exc:
+        logger.warning("redis read fallback: %s", exc)
 
     t0 = time.perf_counter()
     async with db_pool.connection() as conn:
-        cur = await conn.execute(
-            "SELECT id, sku, name, price_cents, stock FROM products ORDER BY id ASC"
-        )
+        cur = await conn.execute("SELECT id, sku, name, price_cents, stock FROM products ORDER BY id ASC")
         rows = await cur.fetchall()
     DB_QUERY_DURATION.labels(operation="list_products").observe(time.perf_counter() - t0)
 
     try:
         await redis_client.set(cache_key, json.dumps(rows), ex=5)
-    except Exception:
-        pass
+    except aioredis.RedisError as exc:
+        logger.warning("redis cache write skipped: %s", exc)
 
     return {"source": "postgres", "version": APP_VERSION, "pod": POD_NAME, "products": rows}
 
@@ -252,12 +249,11 @@ async def list_orders():
 @app.post("/api/orders", status_code=201)
 async def create_order(
     payload: CreateOrderRequest,
-    idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
     idem_key = idempotency_key or str(uuid.uuid4())
     redis_idem_key = f"idem:{idem_key}"
 
-    # 1. Fast-path idempotency deduplication via Redis
     try:
         existing_cached = await redis_client.get(redis_idem_key)
         if existing_cached:
@@ -265,60 +261,57 @@ async def create_order(
                 status_code=200,
                 content={**json.loads(existing_cached), "deduplicated": True, "version": APP_VERSION, "pod": POD_NAME},
             )
-    except Exception:
-        pass
+    except (aioredis.RedisError, json.JSONDecodeError) as exc:
+        logger.warning("redis idempotency read fallback: %s", exc)
 
-    # 2. Transactional checkout in PostgreSQL (row lock prevents overselling)
     t0 = time.perf_counter()
-    async with db_pool.connection() as conn:
-        async with conn.transaction():
-            cur = await conn.execute(
-                "SELECT id, product_id, customer_name, quantity, total_cents, status, created_at FROM orders WHERE idempotency_key = %s",
-                (idem_key,),
+    async with db_pool.connection() as conn, conn.transaction():
+        cur = await conn.execute(
+            "SELECT id, product_id, customer_name, quantity, total_cents, status, created_at FROM orders WHERE idempotency_key = %s",
+            (idem_key,),
+        )
+        existing_db = await cur.fetchone()
+        if existing_db:
+            existing_db["created_at"] = existing_db["created_at"].isoformat()
+            return JSONResponse(
+                status_code=200,
+                content={**existing_db, "deduplicated": True, "version": APP_VERSION, "pod": POD_NAME},
             )
-            existing_db = await cur.fetchone()
-            if existing_db:
-                existing_db["created_at"] = existing_db["created_at"].isoformat()
-                return JSONResponse(
-                    status_code=200,
-                    content={**existing_db, "deduplicated": True, "version": APP_VERSION, "pod": POD_NAME},
-                )
 
-            cur = await conn.execute(
-                "SELECT id, name, price_cents, stock FROM products WHERE id = %s FOR UPDATE",
-                (payload.product_id,),
-            )
-            product = await cur.fetchone()
-            if not product:
-                raise HTTPException(status_code=404, detail="product_not_found")
-            if product["stock"] < payload.quantity:
-                raise HTTPException(status_code=409, detail="out_of_stock")
+        cur = await conn.execute(
+            "SELECT id, name, price_cents, stock FROM products WHERE id = %s FOR UPDATE",
+            (payload.product_id,),
+        )
+        product = await cur.fetchone()
+        if not product:
+            raise HTTPException(status_code=404, detail="product_not_found")
+        if product["stock"] < payload.quantity:
+            raise HTTPException(status_code=409, detail="out_of_stock")
 
-            total_cents = product["price_cents"] * payload.quantity
-            await conn.execute(
-                "UPDATE products SET stock = stock - %s WHERE id = %s",
-                (payload.quantity, payload.product_id),
-            )
-            cur = await conn.execute(
-                """
-                INSERT INTO orders (idempotency_key, product_id, customer_name, quantity, total_cents)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING id, product_id, customer_name, quantity, total_cents, status, created_at
-                """,
-                (idem_key, payload.product_id, payload.customer_name.strip(), payload.quantity, total_cents),
-            )
-            order = await cur.fetchone()
+        total_cents = product["price_cents"] * payload.quantity
+        await conn.execute(
+            "UPDATE products SET stock = stock - %s WHERE id = %s",
+            (payload.quantity, payload.product_id),
+        )
+        cur = await conn.execute(
+            """
+            INSERT INTO orders (idempotency_key, product_id, customer_name, quantity, total_cents)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, product_id, customer_name, quantity, total_cents, status, created_at
+            """,
+            (idem_key, payload.product_id, payload.customer_name.strip(), payload.quantity, total_cents),
+        )
+        order = await cur.fetchone()
     DB_QUERY_DURATION.labels(operation="create_order").observe(time.perf_counter() - t0)
 
     order["created_at"] = order["created_at"].isoformat()
     ORDERS_CREATED_TOTAL.labels(app_version=APP_VERSION).inc()
 
-    # Invalidate product cache & record idempotency key in Redis
     try:
         await redis_client.set(redis_idem_key, json.dumps(order), ex=300)
         await redis_client.delete("products:all")
-    except Exception:
-        pass
+    except aioredis.RedisError as exc:
+        logger.warning("redis post-order update skipped: %s", exc)
 
     return {**order, "version": APP_VERSION, "pod": POD_NAME}
 
