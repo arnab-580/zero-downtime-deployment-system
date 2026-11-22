@@ -35,7 +35,7 @@ jobs:
           APP_VERSION: "ci-test"
         run: |
           pip install --no-cache-dir -r requirements.txt pytest httpx ruff
-          ruff check main.py alembic/env.py tests/
+          ruff check --select E,F,W main.py alembic/env.py tests/
           PYTHONPATH=. pytest -v
 
       - name: Set up Docker Buildx
