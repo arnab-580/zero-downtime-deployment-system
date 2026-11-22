@@ -1,0 +1,16 @@
+controller:
+  replicas: 1
+  metrics:
+    enabled: true
+  trafficRouterPlugins:
+    - name: "argoproj-labs/gatewayAPI"
+      location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.17.0/gatewayapi-plugin-linux-amd64"
+
+providerRBAC:
+  additionalRules:
+    - apiGroups: ["gateway.networking.k8s.io"]
+      resources: ["httproutes", "grpcroutes"]
+      verbs: ["get", "list", "watch", "update", "patch"]
+
+dashboard:
+  enabled: true   # Replaces your old insecure :8081 Node control panel

@@ -1,0 +1,135 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning
+  namespace: deployment-engine
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus.deployment-engine.svc.cluster.local:9090
+        isDefault: true
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: orderpulse
+        folder: ""
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-orderpulse
+  namespace: deployment-engine
+data:
+  orderpulse.json: |
+    {
+      "title": "OrderPulse — Zero-Downtime Progressive Delivery",
+      "uid": "orderpulse-slo",
+      "schemaVersion": 39,
+      "refresh": "5s",
+      "time": { "from": "now-15m", "to": "now" },
+      "panels": [
+        {
+          "id": 1, "type": "timeseries", "title": "Traffic Split by App Version (RPS)",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{
+            "expr": "sum by (app_version) (rate(http_requests_total{namespace=\"deployment-engine\"}[30s]))",
+            "legendFormat": "{{app_version}}"
+          }]
+        },
+        {
+          "id": 2, "type": "timeseries", "title": "HTTP 5xx Error Rate by Version (%)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{
+            "expr": "100 * (sum by (app_version) (rate(http_requests_total{namespace=\"deployment-engine\", status_code=~\"5..\"}[1m])) or vector(0)) / clamp_min(sum by (app_version) (rate(http_requests_total{namespace=\"deployment-engine\"}[1m])), 0.001)",
+            "legendFormat": "{{app_version}} 5xx %"
+          }]
+        },
+        {
+          "id": 3, "type": "timeseries", "title": "HTTP p95 Latency by Version (ms)",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{
+            "expr": "1000 * histogram_quantile(0.95, sum by (le, app_version) (rate(http_request_duration_seconds_bucket{namespace=\"deployment-engine\"}[1m])))",
+            "legendFormat": "{{app_version}} p95 ms"
+          }]
+        },
+        {
+          "id": 4, "type": "timeseries", "title": "PostgreSQL Query p95 Latency (ms)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{
+            "expr": "1000 * histogram_quantile(0.95, sum by (le, operation) (rate(db_query_duration_seconds_bucket{namespace=\"deployment-engine\"}[1m])))",
+            "legendFormat": "{{operation}} p95 ms"
+          }]
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: deployment-engine
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:11.5.2
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: orderpulse-admin
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+          resources:
+            requests: { cpu: "100m", memory: "192Mi" }
+            limits:   { cpu: "300m", memory: "384Mi" }
+          volumeMounts:
+            - name: ds
+              mountPath: /etc/grafana/provisioning/datasources/datasource.yaml
+              subPath: datasource.yaml
+            - name: ds
+              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yaml
+              subPath: dashboards.yaml
+            - name: dash
+              mountPath: /var/lib/grafana/dashboards/orderpulse.json
+              subPath: orderpulse.json
+      volumes:
+        - name: ds
+          configMap: { name: grafana-provisioning }
+        - name: dash
+          configMap: { name: grafana-dashboard-orderpulse }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: deployment-engine
+spec:
+  type: ClusterIP
+  selector:
+    app: grafana
+  ports:
+    - port: 3000
+      targetPort: 3000

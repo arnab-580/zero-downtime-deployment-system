@@ -1,0 +1,49 @@
+# 1. Force all public HTTP (:80) traffic to HTTPS (:443)
+# (cert-manager's /.well-known/acme-challenge/ path automatically takes higher priority during renewal!)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: http-to-https-redirect
+  namespace: deployment-engine
+spec:
+  parentRefs:
+    - name: main-gateway
+      sectionName: http
+  hostnames:
+    - orderpulse.3-6-45-243.sslip.io
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+# 2. Main encrypted HTTPS (:443) traffic route managed by Argo Rollouts
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: orderpulse-route
+  namespace: deployment-engine
+spec:
+  parentRefs:
+    - name: main-gateway
+      sectionName: https
+  hostnames:
+    - orderpulse.3-6-45-243.sslip.io
+  rules:
+    - matches:
+        - path: { type: PathPrefix, value: /metrics }
+      filters:
+        - type: RequestRedirect
+          requestRedirect:
+            statusCode: 302
+            path: { type: ReplaceFullPath, replaceFullPath: / }
+    - matches:
+        - path: { type: PathPrefix, value: / }
+      backendRefs:
+        - name: orderpulse-stable
+          port: 80
+          weight: 100
+        - name: orderpulse-canary
+          port: 80
+          weight: 0

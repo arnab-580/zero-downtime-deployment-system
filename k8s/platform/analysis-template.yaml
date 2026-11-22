@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: canary-slo-gate
+  namespace: deployment-engine
+spec:
+  args:
+    - name: canary-hash
+  metrics:
+    - name: canary-5xx-error-rate
+      interval: 20s
+      failureLimit: 2
+      successCondition: result[0] < 0.01
+      provider:
+        prometheus:
+          address: http://prometheus.deployment-engine.svc.cluster.local:9090
+          query: |
+            (
+              sum(rate(http_requests_total{namespace="deployment-engine", rollouts_pod_template_hash="{{args.canary-hash}}", status_code=~"5.."}[2m]))
+              or vector(0)
+            )
+            /
+            clamp_min(
+              sum(rate(http_requests_total{namespace="deployment-engine", rollouts_pod_template_hash="{{args.canary-hash}}"}[2m]))
+              or vector(0.001),
+              0.001
+            )
+    - name: canary-p95-latency
+      interval: 20s
+      failureLimit: 2
+      successCondition: result[0] < 0.25
+      provider:
+        prometheus:
+          address: http://prometheus.deployment-engine.svc.cluster.local:9090
+          query: |
+            histogram_quantile(
+              0.95,
+              sum by (le) (
+                rate(http_request_duration_seconds_bucket{namespace="deployment-engine", rollouts_pod_template_hash="{{args.canary-hash}}"}[2m])
+              )
+            ) or vector(0)

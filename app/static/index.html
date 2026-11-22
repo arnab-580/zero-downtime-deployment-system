@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OrderPulse • Stateful Storefront</title>
+  <style>
+    :root { --bg: #0b1120; --card: #111827; --border: #1f2937; --accent: #10b981; --text: #f8fafc; --muted: #94a3b8; }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text); max-width: 980px; margin: 2rem auto; padding: 0 1rem; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; }
+    .row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
+    .pill { background: #1e293b; border: 1px solid #334155; color: #38bdf8; padding: 0.3rem 0.75rem; border-radius: 999px; font-size: 0.82rem; font-weight: 600; }
+    .pill.ver { color: var(--accent); border-color: var(--accent); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-top: 1rem; }
+    .product { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .price { font-size: 1.2rem; font-weight: 800; color: var(--accent); }
+    input, button { padding: 0.55rem 0.8rem; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: var(--text); }
+    button { background: var(--accent); color: #052e16; border: none; font-weight: 700; cursor: pointer; }
+    button:hover { opacity: 0.9; }
+    table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 0.55rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; }
+    #toast { margin-top: 0.75rem; font-size: 0.88rem; color: #38bdf8; min-height: 1.2rem; }
+  </style>
+</head>
+<body>
+  <div class="card row">
+    <div>
+      <h2 style="margin:0;">OrderPulse Storefront</h2>
+      <small style="color:var(--muted);">FastAPI + PostgreSQL 16 + Redis 7 • Envoy Gateway + Argo Rollouts</small>
+    </div>
+    <div class="row">
+      <span class="pill ver" id="verBadge">Version: ...</span>
+      <span class="pill" id="podBadge">Pod: ...</span>
+      <span class="pill" id="dbBadge">Schema: ...</span>
+      <span class="pill" id="cacheBadge">Catalog: ...</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <h3 style="margin:0;">Product Catalog</h3>
+      <div class="row">
+        <label style="color:var(--muted); font-size:0.85rem;">Customer:</label>
+        <input id="customerName" value="Arnab" />
+        <button id="refreshBtn" type="button" style="background:#334155; color:#f8fafc;">Refresh</button>
+      </div>
+    </div>
+    <div class="grid" id="productsGrid"></div>
+    <div id="toast"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0;">Recent Confirmed Orders (PostgreSQL)</h3>
+    <table>
+      <thead>
+        <tr><th>Order #</th><th>Customer</th><th>Product</th><th>Qty</th><th>Total</th><th>Status</th><th>Time</th></tr>
+      </thead>
+      <tbody id="ordersBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const esc = (s) => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+    async function loadAll() {
+      const [vRes, pRes, oRes] = await Promise.all([
+        fetch('/api/version'), fetch('/api/products'), fetch('/api/orders')
+      ]);
+      const [ver, prod, ord] = await Promise.all([vRes.json(), pRes.json(), oRes.json()]);
+
+      document.getElementById('verBadge').textContent = `Version: ${ver.version}`;
+      document.getElementById('podBadge').textContent = `Pod: ${prod.pod}`;
+      document.getElementById('dbBadge').textContent = `Migration: ${ver.db_revision}`;
+      document.getElementById('cacheBadge').textContent = `Catalog Source: ${prod.source}`;
+
+      document.getElementById('productsGrid').innerHTML = (prod.products || []).map(p => `
+        <div class="product">
+          <div style="font-weight:700;">${esc(p.name)}</div>
+          <div style="font-size:0.8rem; color:var(--muted);">SKU: ${esc(p.sku)} • Stock: ${p.stock.toLocaleString()}</div>
+          <div class="price">$${(p.price_cents / 100).toFixed(2)}</div>
+          <button onclick="buy(${p.id})">Buy Now (1x)</button>
+        </div>
+      `).join('');
+
+      document.getElementById('ordersBody').innerHTML = (ord.orders || []).map(o => `
+        <tr>
+          <td>#${o.id}</td>
+          <td>${esc(o.customer_name)}</td>
+          <td>${esc(o.product_name)}</td>
+          <td>${o.quantity}</td>
+          <td>$${(o.total_cents / 100).toFixed(2)}</td>
+          <td style="color:#10b981; font-weight:700;">${esc(o.status)}</td>
+          <td style="color:var(--muted);">${new Date(o.created_at).toLocaleTimeString()}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function buy(productId) {
+      const customer = document.getElementById('customerName').value.trim() || 'Guest';
+      const toast = document.getElementById('toast');
+      toast.textContent = 'Processing transaction...';
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ product_id: productId, customer_name: customer, quantity: 1 }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.textContent = `Order #${data.id} confirmed by ${data.version} on pod ${data.pod}!`;
+      } else {
+        toast.textContent = `Error (${res.status}): ${data.error || data.detail}`;
+      }
+      loadAll();
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', loadAll);
+    loadAll();
+  </script>
+</body>
+</html>

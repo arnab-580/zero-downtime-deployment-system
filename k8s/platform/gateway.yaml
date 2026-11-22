@@ -1,0 +1,36 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: main-gateway
+  namespace: deployment-engine
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  gatewayClassName: eg
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      hostname: orderpulse.3-6-45-243.sslip.io
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: orderpulse.3-6-45-243.sslip.io
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: orderpulse-tls
+      allowedRoutes:
+        namespaces:
+          from: Same

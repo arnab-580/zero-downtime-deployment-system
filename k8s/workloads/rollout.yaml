@@ -1,0 +1,92 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: orderpulse-api
+  namespace: deployment-engine
+spec:
+  replicas: 3
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: orderpulse-api
+  template:
+    metadata:
+      labels:
+        app: orderpulse-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: api
+          image: ghcr.io/arnab-580/orderpulse-api:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: APP_VERSION
+              value: "v1.0.0"
+            - name: GIT_SHA
+              value: "local-v1"
+            - name: REDIS_URL
+              value: "redis://redis.deployment-engine.svc.cluster.local:6379/0"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: orderpulse-db-secret
+                  key: DATABASE_URL
+            - name: CHAOS_ERROR_RATE
+              value: "0"
+            - name: CHAOS_LATENCY_MS
+              value: "0"
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "256Mi" }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
+          readinessProbe:
+            httpGet: { path: /readyz, port: 8000 }
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+  strategy:
+    canary:
+      stableService: orderpulse-stable
+      canaryService: orderpulse-canary
+      trafficRouting:
+        plugins:
+          argoproj-labs/gatewayAPI:
+            httpRoute: orderpulse-route
+            namespace: deployment-engine
+      analysis:
+        templates:
+          - templateName: canary-slo-gate
+        startingStep: 1
+        args:
+          - name: canary-hash
+            valueFrom:
+              podTemplateHashValue: Latest
+      steps:
+        - setWeight: 10
+        - pause: { duration: 45s }
+        - setWeight: 25
+        - pause: { duration: 45s }
+        - setWeight: 50
+        - pause: { duration: 45s }

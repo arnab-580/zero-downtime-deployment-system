@@ -1,1 +1,7 @@
-actions-runner/
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.kubeconfig
+.env
+__pycache__/
