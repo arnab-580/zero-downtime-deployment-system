@@ -50,7 +50,7 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [{
-            "expr": "100 * (sum by (app_version) (rate(http_requests_total{namespace=\"deployment-engine\", status_code=~\"5..\"}[1m])) or vector(0)) / clamp_min(sum by (app_version) (rate(http_requests_total{namespace=\"deployment-engine\"}[1m])), 0.001)",
+            "expr": "100 * (sum by (app_version) (rate(http_requests_total{namespace=\"deployment-engine\", status_code=~\"5..\"}[1m])) or (0 * sum by (app_version) (rate(http_requests_total{namespace=\"deployment-engine\"}[1m])))) / clamp_min(sum by (app_version) (rate(http_requests_total{namespace=\"deployment-engine\"}[1m])), 0.001)",
             "legendFormat": "{{app_version}} 5xx %"
           }]
         },

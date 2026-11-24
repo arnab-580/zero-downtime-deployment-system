@@ -29,3 +29,11 @@ def test_order_validation_rejects_invalid_payload():
         json={"product_id": 1, "customer_name": "Arnab", "quantity": -5},
     )
     assert res.status_code == 422
+
+
+def test_order_rejects_unsupported_currency():
+    res = client.post(
+        "/api/orders",
+        json={"product_id": 1, "customer_name": "Arnab", "quantity": 1, "currency": "XYZ"},
+    )
+    assert res.status_code == 400

@@ -179,11 +179,17 @@ async def metrics():
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-# --- Business API ---
+# --- Business API (v2.0.0: Promo Codes + Multi-Currency) ---
+PROMO_CODES = {"DEVOPS20": 0.20, "SRE10": 0.10}
+ALLOWED_CURRENCIES = {"USD", "INR", "EUR"}
+
+
 class CreateOrderRequest(BaseModel):
     product_id: int = Field(gt=0)
     customer_name: str = Field(min_length=1, max_length=100)
     quantity: int = Field(default=1, gt=0, le=10)
+    currency: str = Field(default="USD", min_length=3, max_length=3)
+    promo_code: str | None = Field(default=None, max_length=32)
 
 
 @app.get("/api/version")
@@ -196,6 +202,7 @@ async def get_version():
         "commit": GIT_SHA,
         "pod": POD_NAME,
         "db_revision": row["version_num"] if row else "unknown",
+        "features": ["promo_codes", "multi_currency"],
     }
 
 
@@ -229,8 +236,8 @@ async def list_orders():
     async with db_pool.connection() as conn:
         cur = await conn.execute(
             """
-            SELECT o.id, o.customer_name, o.quantity, o.total_cents, o.status,
-                   o.created_at, p.name AS product_name
+            SELECT o.id, o.customer_name, o.quantity, o.total_cents, o.discount_cents,
+                   o.promo_code, o.currency, o.status, o.created_at, p.name AS product_name
             FROM orders o
             JOIN products p ON p.id = o.product_id
             ORDER BY o.id DESC
@@ -251,6 +258,13 @@ async def create_order(
     payload: CreateOrderRequest,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
+    currency = payload.currency.upper()
+    if currency not in ALLOWED_CURRENCIES:
+        raise HTTPException(status_code=400, detail="unsupported_currency")
+
+    promo = payload.promo_code.strip().upper() if payload.promo_code else None
+    discount_rate = PROMO_CODES.get(promo, 0.0) if promo else 0.0
+
     idem_key = idempotency_key or str(uuid.uuid4())
     redis_idem_key = f"idem:{idem_key}"
 
@@ -267,7 +281,11 @@ async def create_order(
     t0 = time.perf_counter()
     async with db_pool.connection() as conn, conn.transaction():
         cur = await conn.execute(
-            "SELECT id, product_id, customer_name, quantity, total_cents, status, created_at FROM orders WHERE idempotency_key = %s",
+            """
+            SELECT id, product_id, customer_name, quantity, total_cents,
+                   discount_cents, promo_code, currency, status, created_at
+            FROM orders WHERE idempotency_key = %s
+            """,
             (idem_key,),
         )
         existing_db = await cur.fetchone()
@@ -288,18 +306,30 @@ async def create_order(
         if product["stock"] < payload.quantity:
             raise HTTPException(status_code=409, detail="out_of_stock")
 
-        total_cents = product["price_cents"] * payload.quantity
+        gross_cents = product["price_cents"] * payload.quantity
+        discount_cents = int(round(gross_cents * discount_rate))
+        total_cents = max(1, gross_cents - discount_cents)
+
         await conn.execute(
             "UPDATE products SET stock = stock - %s WHERE id = %s",
             (payload.quantity, payload.product_id),
         )
         cur = await conn.execute(
             """
-            INSERT INTO orders (idempotency_key, product_id, customer_name, quantity, total_cents)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING id, product_id, customer_name, quantity, total_cents, status, created_at
+            INSERT INTO orders (idempotency_key, product_id, customer_name, quantity, total_cents, discount_cents, promo_code, currency)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, product_id, customer_name, quantity, total_cents, discount_cents, promo_code, currency, status, created_at
             """,
-            (idem_key, payload.product_id, payload.customer_name.strip(), payload.quantity, total_cents),
+            (
+                idem_key,
+                payload.product_id,
+                payload.customer_name.strip(),
+                payload.quantity,
+                total_cents,
+                discount_cents,
+                promo if discount_rate > 0 else None,
+                currency,
+            ),
         )
         order = await cur.fetchone()
     DB_QUERY_DURATION.labels(operation="create_order").observe(time.perf_counter() - t0)
