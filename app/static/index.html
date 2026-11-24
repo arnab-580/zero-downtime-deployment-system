@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OrderPulse • Stateful Storefront</title>
+  <title>OrderPulse v2 • Promo & Multi-Currency Storefront</title>
   <style>
-    :root { --bg: #0b1120; --card: #111827; --border: #1f2937; --accent: #10b981; --text: #f8fafc; --muted: #94a3b8; }
+    :root { --bg: #0b1120; --card: #111827; --border: #1f2937; --accent: #3b82f6; --text: #f8fafc; --muted: #94a3b8; }
     * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
-    body { background: var(--bg); color: var(--text); max-width: 980px; margin: 2rem auto; padding: 0 1rem; }
+    body { background: var(--bg); color: var(--text); max-width: 1020px; margin: 2rem auto; padding: 0 1rem; }
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; }
     .row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
     .pill { background: #1e293b; border: 1px solid #334155; color: #38bdf8; padding: 0.3rem 0.75rem; border-radius: 999px; font-size: 0.82rem; font-weight: 600; }
@@ -15,9 +15,8 @@
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-top: 1rem; }
     .product { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
     .price { font-size: 1.2rem; font-weight: 800; color: var(--accent); }
-    input, button { padding: 0.55rem 0.8rem; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: var(--text); }
-    button { background: var(--accent); color: #052e16; border: none; font-weight: 700; cursor: pointer; }
-    button:hover { opacity: 0.9; }
+    input, select, button { padding: 0.55rem 0.8rem; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: var(--text); }
+    button { background: var(--accent); color: #fff; border: none; font-weight: 700; cursor: pointer; }
     table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.9rem; }
     th, td { text-align: left; padding: 0.55rem; border-bottom: 1px solid var(--border); }
     th { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; }
@@ -27,8 +26,8 @@
 <body>
   <div class="card row">
     <div>
-      <h2 style="margin:0;">OrderPulse Storefront</h2>
-      <small style="color:var(--muted);">FastAPI + PostgreSQL 16 + Redis 7 • Envoy Gateway + Argo Rollouts</small>
+      <h2 style="margin:0;">OrderPulse Storefront <small style="color:var(--accent);">v2 Promo Engine</small></h2>
+      <small style="color:var(--muted);">Try promo code <strong>DEVOPS20</strong> (20% off) or <strong>SRE10</strong> (10% off)</small>
     </div>
     <div class="row">
       <span class="pill ver" id="verBadge">Version: ...</span>
@@ -42,9 +41,10 @@
     <div class="row">
       <h3 style="margin:0;">Product Catalog</h3>
       <div class="row">
-        <label style="color:var(--muted); font-size:0.85rem;">Customer:</label>
-        <input id="customerName" value="Arnab" />
-        <button id="refreshBtn" type="button" style="background:#334155; color:#f8fafc;">Refresh</button>
+        <input id="customerName" value="Arnab" placeholder="Customer" />
+        <input id="promoCode" value="DEVOPS20" placeholder="Promo (DEVOPS20)" style="width:140px;" />
+        <select id="currency"><option>USD</option><option>INR</option><option>EUR</option></select>
+        <button id="refreshBtn" type="button" style="background:#334155;">Refresh</button>
       </div>
     </div>
     <div class="grid" id="productsGrid"></div>
@@ -55,14 +55,14 @@
     <h3 style="margin:0;">Recent Confirmed Orders (PostgreSQL)</h3>
     <table>
       <thead>
-        <tr><th>Order #</th><th>Customer</th><th>Product</th><th>Qty</th><th>Total</th><th>Status</th><th>Time</th></tr>
+        <tr><th>Order #</th><th>Customer</th><th>Product</th><th>Promo</th><th>Total</th><th>Currency</th><th>Time</th></tr>
       </thead>
       <tbody id="ordersBody"></tbody>
     </table>
   </div>
 
   <script>
-    const esc = (s) => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
     async function loadAll() {
       const [vRes, pRes, oRes] = await Promise.all([
@@ -73,7 +73,7 @@
       document.getElementById('verBadge').textContent = `Version: ${ver.version}`;
       document.getElementById('podBadge').textContent = `Pod: ${prod.pod}`;
       document.getElementById('dbBadge').textContent = `Migration: ${ver.db_revision}`;
-      document.getElementById('cacheBadge').textContent = `Catalog Source: ${prod.source}`;
+      document.getElementById('cacheBadge').textContent = `Catalog: ${prod.source}`;
 
       document.getElementById('productsGrid').innerHTML = (prod.products || []).map(p => `
         <div class="product">
@@ -89,29 +89,32 @@
           <td>#${o.id}</td>
           <td>${esc(o.customer_name)}</td>
           <td>${esc(o.product_name)}</td>
-          <td>${o.quantity}</td>
+          <td>${o.promo_code ? `<strong style="color:#38bdf8;">${esc(o.promo_code)}</strong> (-$${(o.discount_cents/100).toFixed(2)})` : '-'}</td>
           <td>$${(o.total_cents / 100).toFixed(2)}</td>
-          <td style="color:#10b981; font-weight:700;">${esc(o.status)}</td>
+          <td>${esc(o.currency || 'USD')}</td>
           <td style="color:var(--muted);">${new Date(o.created_at).toLocaleTimeString()}</td>
         </tr>
       `).join('');
     }
 
     async function buy(productId) {
-      const customer = document.getElementById('customerName').value.trim() || 'Guest';
       const toast = document.getElementById('toast');
       toast.textContent = 'Processing transaction...';
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
-        body: JSON.stringify({ product_id: productId, customer_name: customer, quantity: 1 }),
+        body: JSON.stringify({
+          product_id: productId,
+          customer_name: document.getElementById('customerName').value.trim() || 'Guest',
+          quantity: 1,
+          currency: document.getElementById('currency').value,
+          promo_code: document.getElementById('promoCode').value.trim() || null,
+        }),
       });
       const data = await res.json();
-      if (res.ok) {
-        toast.textContent = `Order #${data.id} confirmed by ${data.version} on pod ${data.pod}!`;
-      } else {
-        toast.textContent = `Error (${res.status}): ${data.error || data.detail}`;
-      }
+      toast.textContent = res.ok
+        ? `Order #${data.id} confirmed by ${data.version} on pod ${data.pod} (saved $${((data.discount_cents||0)/100).toFixed(2)})!`
+        : `Error (${res.status}): ${data.error || data.detail}`;
       loadAll();
     }
 

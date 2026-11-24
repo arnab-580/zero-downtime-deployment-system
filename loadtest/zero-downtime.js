@@ -8,11 +8,11 @@ export const options = {
   scenarios: {
     continuous_aws_traffic: {
       executor: "constant-arrival-rate",
-      rate: 20,              // 20 req/s steady reads + real Postgres writes
+      rate: 30,              // 30 req/s steady reads + real Postgres writes
       timeUnit: "1s",
       duration: "3m30s",     // Covers full 10% -> 25% -> 50% -> 100% rollout
-      preAllocatedVUs: 15,
-      maxVUs: 40,
+      preAllocatedVUs: 20,
+      maxVUs: 60,
     },
   },
   thresholds: {

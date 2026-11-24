@@ -25,16 +25,16 @@ spec:
         fsGroup: 1001
       containers:
         - name: api
-          image: ghcr.io/arnab-580/orderpulse-api:v1.0.0
+          image: ghcr.io/arnab-580/orderpulse-api:v2.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 8000
           env:
             - name: APP_VERSION
-              value: "v1.0.0"
+              value: "v2.0.0"
             - name: GIT_SHA
-              value: "local-v1"
+              value: "v2.0.0"
             - name: REDIS_URL
               value: "redis://redis.deployment-engine.svc.cluster.local:6379/0"
             - name: DATABASE_URL
